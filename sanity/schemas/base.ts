@@ -1,4 +1,5 @@
 import { defineType, defineField } from "sanity";
+import { richTextBlock } from "./portableText";
 
 export const siteSettings = defineType({
   name: "siteSettings",
@@ -38,7 +39,7 @@ export const author = defineType({
     defineField({ name: "slug", title: "Slug", type: "slug", options: { source: "name" } }),
     defineField({ name: "photo", title: "Photo", type: "image" }),
     defineField({ name: "shortBio", title: "Short Bio", type: "text" }),
-    defineField({ name: "fullBio", title: "Full Bio", type: "portableText" }),
+    defineField({ name: "fullBio", title: "Full Bio", type: "array", of: [richTextBlock] }),
     defineField({ name: "role", title: "Role", type: "string" }),
     defineField({ name: "expertise", title: "Expertise", type: "array", of: [{ type: "string" }] }),
     defineField({ name: "email", title: "Email", type: "string" }),
