@@ -1,0 +1,5 @@
+{
+  "projectId": "a8tacmnf",
+  "dataset": "production",
+  "studioHost": "https://${PROJECT_ID}.sanity.studio"
+}
