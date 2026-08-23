@@ -231,7 +231,11 @@ async function downloadOnce(url: URL): Promise<RemoteResponse> {
         method: "GET",
         agent: false,
         headers: { Accept: "image/jpeg, image/png, image/webp" },
-        lookup: (_hostname, _options, callback) => {
+        lookup: (_hostname, options, callback) => {
+          if (options.all) {
+            callback(null, addresses);
+            return;
+          }
           const address = addresses[0];
           callback(null, address.address, address.family);
         },
