@@ -1,11 +1,7 @@
 import Link from "next/link";
-import type { CategoryLink, Slug } from "@/sanity/lib/queries";
+import type { CategoryLink } from "@/sanity/lib/queries";
 
-type TickerStory = { _id: string; title: string; slug: Slug };
-
-export function SiteNavigation({ categories, latestStories }: { categories: CategoryLink[]; latestStories: TickerStory[] }) {
-  const tickerStories = [...latestStories, ...latestStories];
-
+export function SiteNavigation({ categories }: { categories: CategoryLink[] }) {
   return (
     <>
       <header className="site-header">
@@ -23,21 +19,6 @@ export function SiteNavigation({ categories, latestStories }: { categories: Cate
           {categories.map((category) => <Link href={`/categories/${category.slug.current}`} key={category._id}>{category.title}</Link>)}
         </div>
       </nav>
-
-      {latestStories.length ? (
-        <div className="story-ticker" aria-label="Latest stories">
-          <span className="story-ticker-label">Latest</span>
-          <div className="story-ticker-window">
-            <div className="story-ticker-track">
-              {tickerStories.map((story, index) => (
-                <Link href={`/articles/${story.slug.current}`} key={`${story._id}-${index}`} aria-hidden={index >= latestStories.length || undefined} tabIndex={index >= latestStories.length ? -1 : undefined}>
-                  <span>{story.title}</span><i aria-hidden="true">/</i>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

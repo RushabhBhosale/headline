@@ -100,10 +100,9 @@ export async function getHomepageData(): Promise<HomePageData> {
   }`);
 }
 
-export async function getSiteNavigationData(): Promise<{ categories: CategoryLink[]; latestArticles: Pick<ArticleCard, "_id" | "title" | "slug">[] }> {
+export async function getSiteNavigationData(): Promise<{ categories: CategoryLink[] }> {
   return sanityClient.fetch(`{
-    "categories": *[_type == "category" && defined(slug.current)] | order(coalesce(displayOrder, 999), title asc){_id, title, slug},
-    "latestArticles": *[_type == "article" && status == "published"] | order(publishedAt desc)[0...8]{_id, title, slug}
+    "categories": *[_type == "category" && defined(slug.current)] | order(coalesce(displayOrder, 999), title asc){_id, title, slug}
   }`);
 }
 

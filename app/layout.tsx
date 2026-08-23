@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  let navigation: Awaited<ReturnType<typeof getSiteNavigationData>> = { categories: [], latestArticles: [] };
+  let navigation: Awaited<ReturnType<typeof getSiteNavigationData>> = { categories: [] };
   try {
     navigation = await getSiteNavigationData();
   } catch {}
@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         `}
       </Script>
       <body>
-        <SiteNavigation categories={navigation.categories} latestStories={navigation.latestArticles} />
+        <SiteNavigation categories={navigation.categories} />
         <div className="site-content">{children}</div>
         <SiteFooter />
       </body>
