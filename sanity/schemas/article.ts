@@ -2,7 +2,7 @@ import { defineType, defineField } from "sanity";
 import { author } from "./base";
 import { category } from "./base";
 import { topic } from "./base";
-import { richTextBlock } from "./portableText";
+import { contentImage, richTextBlock } from "./portableText";
 
 export const article = defineType({
   name: "article",
@@ -16,7 +16,7 @@ export const article = defineType({
       name: "body",
       title: "Body",
       type: "array",
-      of: [richTextBlock],
+      of: [richTextBlock, contentImage],
     }),
     defineField({
       name: "category",

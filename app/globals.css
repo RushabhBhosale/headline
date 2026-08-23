@@ -115,6 +115,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, va
 .article-image { position: relative; aspect-ratio: 1.7 / 1; overflow: hidden; border-radius: 5px; background: #d5d0ca; }
 .article-image img { object-fit: cover; }
 .image-caption { margin: 8px 0 0; color: var(--ink-muted); font-size: .7rem; line-height: 1.45; }
+.image-caption span, .article-body-image figcaption span { display: block; margin-top: 3px; }
 .article-content-frame { display: grid; grid-template-columns: 140px minmax(0, 650px); width: min(880px, calc(100% - 40px)); gap: 46px; margin: 50px auto 0; }
 .article-side-note { display: flex; flex-direction: column; align-items: start; gap: 9px; padding-top: 7px; color: var(--ink-muted); font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .article-side-note a { color: var(--accent); font-size: .68rem; }
@@ -124,6 +125,10 @@ a:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, va
 .article-body h2 { margin: 54px 0 17px; font-family: var(--serif); font-size: 2.12rem; font-weight: 600; letter-spacing: -.04em; line-height: 1.05; }
 .article-body h3 { margin: 39px 0 13px; font-family: var(--serif); font-size: 1.6rem; font-weight: 600; letter-spacing: -.03em; }
 .article-body blockquote { margin: 34px 0; border-left: 3px solid var(--accent); padding: 3px 0 3px 25px; color: var(--ink); font-family: var(--serif); font-size: 1.55rem; font-style: italic; line-height: 1.35; }
+.article-body-image { margin: 34px 0; }
+.article-body-image > div { position: relative; aspect-ratio: 1.5 / 1; overflow: hidden; border-radius: 5px; background: #d5d0ca; }
+.article-body-image img { object-fit: cover; }
+.article-body-image figcaption { margin-top: 8px; color: var(--ink-muted); font-size: .7rem; line-height: 1.45; }
 .article-callout { margin: 32px 0; border-radius: 4px; background: var(--accent-soft); padding: 22px; color: var(--ink); font-family: var(--serif); font-size: 1.17rem; line-height: 1.5; }
 .article-callout span { display: block; margin-bottom: 7px; color: var(--accent); font-family: var(--sans); font-size: .64rem; font-style: normal; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 .article-notes { margin-top: 39px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 17px 0; }

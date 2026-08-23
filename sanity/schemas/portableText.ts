@@ -31,3 +31,14 @@ export const richTextBlock = defineArrayMember({
     ],
   },
 });
+
+export const contentImage = defineArrayMember({
+  type: "image",
+  title: "Content Image",
+  options: { hotspot: true },
+  fields: [
+    defineField({ name: "alt", title: "Alt text", type: "string", validation: (rule) => rule.required() }),
+    defineField({ name: "caption", title: "Caption", type: "string" }),
+    defineField({ name: "credit", title: "Image credit", type: "string" }),
+  ],
+});

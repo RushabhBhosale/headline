@@ -45,6 +45,21 @@ function PortableText({ blocks }: { blocks?: PortableTextBlock[] }) {
   return (
     <div className="article-body">
       {blocks.map((block) => {
+        if (block._type === "image" && block.asset) {
+          return (
+            <figure className="article-body-image" key={block._key}>
+              <div>
+                <Image
+                  src={urlForImage(block.asset).width(1400).url()}
+                  alt={block.alt || ""}
+                  fill
+                  sizes="(max-width: 800px) 100vw, 720px"
+                />
+              </div>
+              {(block.caption || block.credit) && <figcaption>{block.caption}{block.credit && <span>Photo: {block.credit}</span>}</figcaption>}
+            </figure>
+          );
+        }
         const text = block.children?.map((child) => child.text || "").join("") || "";
         if (!text) return null;
         if (block.style === "h2") return <h2 key={block._key}>{text}</h2>;
@@ -79,7 +94,7 @@ export default async function ArticlePage({ params }: PageProps) {
           </div>
         </header>
 
-        <div className="article-hero-frame"><ArticleImage article={article} />{article.heroImageCaption && <p className="image-caption">{article.heroImageCaption}</p>}</div>
+        <div className="article-hero-frame"><ArticleImage article={article} />{(article.heroImageCaption || article.heroImageCredit) && <p className="image-caption">{article.heroImageCaption}{article.heroImageCredit && <span>Photo: {article.heroImageCredit}</span>}</p>}</div>
 
         <div className="article-content-frame">
           <aside className="article-side-note"><span>Share the story</span><a href={`mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(`Read: /articles/${article.slug.current}`)}`}>Email</a></aside>

@@ -1,0 +1,288 @@
+openapi: 3.1.0
+info:
+  title: Headline Content Automation API
+  version: 1.0.0
+  description: |
+    Private API for uploading images to Sanity and attaching them to Headline articles.
+    Configure this Action with Bearer authentication using CONTENT_AUTOMATION_SECRET.
+servers:
+  - url: https://your-headline-domain.example
+    description: Replace with the public HTTPS domain of your deployed Headline site.
+paths:
+  /api/sanity/article-image:
+    post:
+      operationId: attachArticleImage
+      summary: Upload an image and attach it to an article
+      description: |
+        Use a publicly accessible HTTPS imageUrl when possible. For body placement,
+        afterBlockKey inserts the image immediately after that Portable Text block;
+        without it, the image is appended to the article body.
+      security:
+        - contentAutomationBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleImageUrlRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ArticleImageFileRequest"
+      responses:
+        "201":
+          description: Image uploaded and attached to the article.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleImageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/ArticleNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/ImageTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedImage"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /api/sanity/upload-image:
+    post:
+      operationId: uploadSanityImage
+      summary: Upload an image to Sanity without attaching it to an article
+      description: Uploads JPEG, PNG, or WebP images up to 10 MB.
+      security:
+        - contentAutomationBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUrlRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageFileRequest"
+      responses:
+        "201":
+          description: Image uploaded to Sanity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadImageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/ImageTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedImage"
+        "500":
+          $ref: "#/components/responses/ServerError"
+components:
+  securitySchemes:
+    contentAutomationBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: CONTENT_AUTOMATION_SECRET
+  schemas:
+    ArticleImageUrlRequest:
+      type: object
+      additionalProperties: false
+      required: [articleId, imageUrl, placement, alt]
+      properties:
+        articleId:
+          type: string
+          description: Sanity article document ID. Use drafts.ARTICLE_ID to modify a draft only.
+          pattern: "^(?:drafts\\.)?[A-Za-z0-9][A-Za-z0-9._-]*$"
+        imageUrl:
+          type: string
+          format: uri
+          description: Public HTTP or HTTPS URL for a JPEG, PNG, or WebP image.
+        placement:
+          type: string
+          enum: [hero, body]
+        afterBlockKey:
+          type: string
+          description: Existing Portable Text block key. Only applicable when placement is body.
+          pattern: "^[A-Za-z0-9_-]{1,128}$"
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Required, descriptive alt text supplied by the caller.
+        caption:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        credit:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ArticleImageFileRequest:
+      type: object
+      additionalProperties: false
+      required: [articleId, file, placement, alt]
+      properties:
+        articleId:
+          type: string
+          pattern: "^(?:drafts\\.)?[A-Za-z0-9][A-Za-z0-9._-]*$"
+        file:
+          type: string
+          format: binary
+          description: JPEG, PNG, or WebP image, up to 10 MB.
+        placement:
+          type: string
+          enum: [hero, body]
+        afterBlockKey:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{1,128}$"
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        caption:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        credit:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ImageUrlRequest:
+      type: object
+      additionalProperties: false
+      required: [imageUrl, alt]
+      properties:
+        imageUrl:
+          type: string
+          format: uri
+          description: Public HTTP or HTTPS URL for a JPEG, PNG, or WebP image.
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        caption:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        credit:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ImageFileRequest:
+      type: object
+      additionalProperties: false
+      required: [file, alt]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: JPEG, PNG, or WebP image, up to 10 MB.
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        caption:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        credit:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    Asset:
+      type: object
+      required: [id, ref, url, width, height]
+      properties:
+        id:
+          type: string
+        ref:
+          type: string
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+    ArticleImageResponse:
+      type: object
+      required: [success, articleId, placement, asset]
+      properties:
+        success:
+          type: boolean
+          const: true
+        articleId:
+          type: string
+        placement:
+          type: string
+          enum: [hero, body]
+        asset:
+          $ref: "#/components/schemas/Asset"
+        blockKey:
+          type: string
+          description: Present for body image placement.
+    UploadImageResponse:
+      type: object
+      required: [success, asset]
+      properties:
+        success:
+          type: boolean
+          const: true
+        asset:
+          $ref: "#/components/schemas/Asset"
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+  responses:
+    BadRequest:
+      description: Invalid request data.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ArticleNotFound:
+      description: The supplied article ID does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: The article was updated concurrently. Retry with the current block key if needed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ImageTooLarge:
+      description: Image exceeds the 10 MB limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    UnsupportedImage:
+      description: Only JPEG, PNG, and WebP images are supported.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServerError:
+      description: Unexpected server or Sanity error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

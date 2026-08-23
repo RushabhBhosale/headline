@@ -13,6 +13,7 @@ export type ArticleCard = {
   heroImage?: SanityImageSource;
   heroImageAlt?: string;
   heroImageCaption?: string;
+  heroImageCredit?: string;
   author?: { name?: string; role?: string; photo?: unknown };
   category?: { title?: string; slug?: Slug };
   trending?: boolean;
@@ -24,6 +25,10 @@ export type PortableTextBlock = {
   _type: string;
   style?: string;
   children?: { _key: string; text?: string }[];
+  asset?: SanityImageSource;
+  alt?: string;
+  caption?: string;
+  credit?: string;
 };
 
 export type Article = ArticleCard & {
@@ -58,6 +63,7 @@ const articleCardFields = `
   heroImage,
   heroImageAlt,
   heroImageCaption,
+  heroImageCredit,
   author->{name, role, photo},
   category->{title, slug},
   trending,
