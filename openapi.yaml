@@ -6,7 +6,7 @@ info:
     Private API for uploading images to Sanity and attaching them to Headline articles.
     Configure this Action with Bearer authentication using CONTENT_AUTOMATION_SECRET.
 servers:
-  - url: https://your-headline-domain.example
+  - url: https://www.headlinethread.co.in
     description: Replace with the public HTTPS domain of your deployed Headline site.
 paths:
   /api/sanity/article-image:
