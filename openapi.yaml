@@ -8,6 +8,34 @@ servers:
   - url: https://www.headlinethread.co.in
     description: Replace with the public HTTPS domain of your deployed Headline site.
 paths:
+  /api/sanity/articles:
+    get:
+      operationId: listArticles
+      summary: List published Headline articles
+      description: |
+        Lists recent published articles (blogs), including the Sanity article ID
+        needed by attachArticleImage.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of articles to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Published articles returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /api/sanity/article-image:
     post:
       operationId: attachArticleImage
@@ -75,6 +103,51 @@ paths:
           $ref: "#/components/responses/ServerError"
 components:
   schemas:
+    ArticleSummary:
+      type: object
+      required: [id, title, status, hasHeroImage]
+      properties:
+        id:
+          type: string
+          description: Sanity article document ID for use with attachArticleImage.
+        title:
+          type: string
+        slug:
+          type: string
+        excerpt:
+          type: string
+        status:
+          type: string
+          const: published
+        publishedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        hasHeroImage:
+          type: boolean
+        category:
+          type: object
+          properties:
+            title:
+              type: string
+            slug:
+              type: string
+    ArticleListResponse:
+      type: object
+      required: [success, count, articles]
+      properties:
+        success:
+          type: boolean
+          const: true
+        count:
+          type: integer
+          minimum: 0
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleSummary"
     ArticleImageUrlRequest:
       type: object
       additionalProperties: false
