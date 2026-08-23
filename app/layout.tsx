@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SiteFooter, SiteNavigation } from "@/components/site-navigation";
+import { getSiteNavigationData } from "@/sanity/lib/queries";
 import "./globals.css";
 import Script from "next/script";
 
@@ -12,7 +13,14 @@ export const metadata: Metadata = {
     "Independent reporting and clear context for the stories that matter.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const revalidate = 60;
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  let navigation: Awaited<ReturnType<typeof getSiteNavigationData>> = { categories: [], latestArticles: [] };
+  try {
+    navigation = await getSiteNavigationData();
+  } catch {}
+
   return (
     <html lang="en">
       <Script
@@ -30,7 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         `}
       </Script>
       <body>
-        <SiteNavigation />
+        <SiteNavigation categories={navigation.categories} latestStories={navigation.latestArticles} />
         <div className="site-content">{children}</div>
         <SiteFooter />
       </body>

@@ -20,6 +20,13 @@ export type ArticleCard = {
   breaking?: boolean;
 };
 
+export type CategoryLink = {
+  _id: string;
+  title: string;
+  slug: Slug;
+  description?: string;
+};
+
 export type PortableTextBlock = {
   _key: string;
   _type: string;
@@ -53,6 +60,16 @@ export type HomePageData = {
   latestArticles: ArticleCard[];
 };
 
+export type CategoryPageData = {
+  category: CategoryLink;
+  articles: ArticleCard[];
+};
+
+export type SitemapData = {
+  articles: { slug: Slug; publishedAt?: string; updatedAt?: string }[];
+  categories: CategoryLink[];
+};
+
 const articleCardFields = `
   _id,
   title,
@@ -83,6 +100,31 @@ export async function getHomepageData(): Promise<HomePageData> {
   }`);
 }
 
+export async function getSiteNavigationData(): Promise<{ categories: CategoryLink[]; latestArticles: Pick<ArticleCard, "_id" | "title" | "slug">[] }> {
+  return sanityClient.fetch(`{
+    "categories": *[_type == "category" && defined(slug.current)] | order(coalesce(displayOrder, 999), title asc){_id, title, slug},
+    "latestArticles": *[_type == "article" && status == "published"] | order(publishedAt desc)[0...8]{_id, title, slug}
+  }`);
+}
+
+export async function getCategoryPage(slug: string): Promise<CategoryPageData | null> {
+  const data = await sanityClient.fetch<CategoryPageData>(
+    `{
+      "category": *[_type == "category" && slug.current == $slug][0]{_id, title, slug, description},
+      "articles": *[_type == "article" && status == "published" && category->slug.current == $slug] | order(publishedAt desc){${articleCardFields}}
+    }`,
+    { slug }
+  );
+  return data.category ? data : null;
+}
+
+export async function getSitemapData(): Promise<SitemapData> {
+  return sanityClient.fetch(`{
+    "articles": *[_type == "article" && status == "published" && defined(slug.current)]{slug, publishedAt, updatedAt},
+    "categories": *[_type == "category" && defined(slug.current)]{_id, title, slug}
+  }`);
+}
+
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
   return sanityClient.fetch(
     `*[_type == "article" && slug.current == $slug && status == "published"][0]{
@@ -92,7 +134,11 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
       thread->{title, slug},
       correctionNote,
       updateNote,
-      "relatedArticles": relatedArticles[]->{${articleCardFields}}
+      "relatedArticles": select(
+        count(*[_type == "article" && status == "published" && _id != ^._id && defined(^.category._ref) && category._ref == ^.category._ref]) > 0 =>
+          *[_type == "article" && status == "published" && _id != ^._id && category._ref == ^.category._ref] | order(publishedAt desc)[0...4]{${articleCardFields}},
+        *[_type == "article" && status == "published" && _id != ^._id] | order(publishedAt desc)[0...4]{${articleCardFields}}
+      )
     }`,
     { slug }
   );
