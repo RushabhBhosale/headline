@@ -3,7 +3,6 @@ import {
   ImageApiError,
   imageApiErrorResponse,
   parseImageUploadInput,
-  requireAutomationAuthorization,
   uploadSanityImage,
   validateImageRequestSize,
 } from "@/sanity/lib/imageUpload";
@@ -96,7 +95,6 @@ function isConflict(error: unknown) {
 
 export async function POST(request: Request) {
   try {
-    requireAutomationAuthorization(request);
     validateImageRequestSize(request);
     const articleInput = await parseArticleInput(request);
     const articleId = requireArticleId(articleInput.articleId);

@@ -1,13 +1,11 @@
 import {
   imageApiErrorResponse,
   parseImageUploadInput,
-  requireAutomationAuthorization,
   uploadSanityImage,
 } from "@/sanity/lib/imageUpload";
 
 export async function POST(request: Request) {
   try {
-    requireAutomationAuthorization(request);
     const input = await parseImageUploadInput(request);
     const asset = await uploadSanityImage(input);
 

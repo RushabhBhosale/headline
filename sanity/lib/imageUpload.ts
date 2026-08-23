@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
@@ -110,20 +109,6 @@ export async function parseImageUploadInput(request: Request): Promise<ImageUplo
   }
 
   throw new ImageApiError(400, "Content-Type must be application/json or multipart/form-data");
-}
-
-export function requireAutomationAuthorization(request: Request) {
-  const secret = process.env.CONTENT_AUTOMATION_SECRET;
-  const authorization = request.headers.get("authorization");
-
-  if (!secret) throw new ImageApiError(500, "Server configuration is missing");
-  if (!authorization?.startsWith("Bearer ")) throw new ImageApiError(401, "Unauthorized");
-
-  const supplied = Buffer.from(authorization.slice(7));
-  const expected = Buffer.from(secret);
-  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
-    throw new ImageApiError(401, "Unauthorized");
-  }
 }
 
 function isBlockedIpv4(address: string) {

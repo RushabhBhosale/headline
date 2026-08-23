@@ -3,8 +3,7 @@ info:
   title: Headline Content Automation API
   version: 1.0.0
   description: |
-    Private API for uploading images to Sanity and attaching them to Headline articles.
-    Configure this Action with Bearer authentication using CONTENT_AUTOMATION_SECRET.
+    API for uploading images to Sanity and attaching them to Headline articles.
 servers:
   - url: https://www.headlinethread.co.in
     description: Replace with the public HTTPS domain of your deployed Headline site.
@@ -17,8 +16,6 @@ paths:
         Use a publicly accessible HTTPS imageUrl when possible. For body placement,
         afterBlockKey inserts the image immediately after that Portable Text block;
         without it, the image is appended to the article body.
-      security:
-        - contentAutomationBearer: []
       requestBody:
         required: true
         content:
@@ -37,8 +34,6 @@ paths:
                 $ref: "#/components/schemas/ArticleImageResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/ArticleNotFound"
         "409":
@@ -54,8 +49,6 @@ paths:
       operationId: uploadSanityImage
       summary: Upload an image to Sanity without attaching it to an article
       description: Uploads JPEG, PNG, or WebP images up to 10 MB.
-      security:
-        - contentAutomationBearer: []
       requestBody:
         required: true
         content:
@@ -74,8 +67,6 @@ paths:
                 $ref: "#/components/schemas/UploadImageResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "413":
           $ref: "#/components/responses/ImageTooLarge"
         "415":
@@ -83,11 +74,6 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 components:
-  securitySchemes:
-    contentAutomationBearer:
-      type: http
-      scheme: bearer
-      bearerFormat: CONTENT_AUTOMATION_SECRET
   schemas:
     ArticleImageUrlRequest:
       type: object
@@ -246,12 +232,6 @@ components:
   responses:
     BadRequest:
       description: Invalid request data.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-    Unauthorized:
-      description: Missing or invalid bearer token.
       content:
         application/json:
           schema:
