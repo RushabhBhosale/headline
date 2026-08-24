@@ -121,7 +121,7 @@ export async function getSitemapData(): Promise<SitemapData> {
   return sanityClient.fetch(`{
     "articles": *[_type == "article" && status == "published" && defined(slug.current)]{slug, publishedAt, updatedAt},
     "categories": *[_type == "category" && defined(slug.current)]{_id, title, slug}
-  }`);
+  }`, {}, { cache: "no-store", useCdn: false });
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {

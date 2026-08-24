@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSitemapData, type SitemapData } from "@/sanity/lib/queries";
 
-export const revalidate = 3600;
+export const revalidate = 0;
 
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://headlinethread.co.in").replace(/\/$/, "");
 
