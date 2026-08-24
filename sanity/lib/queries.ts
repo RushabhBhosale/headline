@@ -31,7 +31,8 @@ export type PortableTextBlock = {
   _key: string;
   _type: string;
   style?: string;
-  children?: { _key: string; text?: string }[];
+  children?: { _key: string; _type?: string; text?: string; marks?: string[] }[];
+  markDefs?: { _key: string; _type?: string; href?: string }[];
   asset?: SanityImageSource;
   alt?: string;
   caption?: string;
@@ -100,9 +101,10 @@ export async function getHomepageData(): Promise<HomePageData> {
   }`, {}, { cache: "no-store", useCdn: false });
 }
 
-export async function getSiteNavigationData(): Promise<{ categories: CategoryLink[] }> {
+export async function getSiteNavigationData(): Promise<{ categories: CategoryLink[]; latestHeadline?: ArticleCard | null }> {
   return sanityClient.fetch(`{
-    "categories": *[_type == "category" && defined(slug.current)] | order(coalesce(displayOrder, 999), title asc){_id, title, slug}
+    "categories": *[_type == "category" && defined(slug.current)] | order(coalesce(displayOrder, 999), title asc){_id, title, slug},
+    "latestHeadline": *[_type == "article" && defined(slug.current)] | order(breaking desc, publishedAt desc)[0]{${articleCardFields}}
   }`);
 }
 

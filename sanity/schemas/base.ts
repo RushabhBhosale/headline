@@ -63,6 +63,17 @@ export const category = defineType({
   ],
 });
 
+export const subscriber = defineType({
+  name: "subscriber",
+  title: "Newsletter Subscriber",
+  type: "document",
+  fields: [
+    defineField({ name: "email", title: "Email", type: "string" }),
+    defineField({ name: "subscribedAt", title: "Subscribed At", type: "datetime" }),
+    defineField({ name: "unsubscribed", title: "Unsubscribed", type: "boolean", initialValue: false }),
+  ],
+});
+
 export const topic = defineType({
   name: "topic",
   title: "Topic",

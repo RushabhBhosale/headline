@@ -1,8 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Newsreader } from "next/font/google";
 import { SiteFooter, SiteNavigation } from "@/components/site-navigation";
 import { getSiteNavigationData } from "@/sanity/lib/queries";
 import "./globals.css";
 import Script from "next/script";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-newsreader",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -15,7 +24,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "light",
-  themeColor: "#f8f7f3",
+  themeColor: "#fbfaf8",
 };
 
 export const revalidate = 60;
@@ -27,7 +36,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   } catch {}
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${newsreader.variable}`}>
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=G-9X1TWY7CWK"
         strategy="afterInteractive"
@@ -38,14 +47,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-
           gtag('config', 'G-9X1TWY7CWK');
         `}
       </Script>
       <body>
-        <SiteNavigation categories={navigation.categories} />
+        <SiteNavigation categories={navigation.categories} latestHeadline={navigation.latestHeadline} />
         <div className="site-content">{children}</div>
-        <SiteFooter />
+        <SiteFooter categories={navigation.categories} />
       </body>
     </html>
   );

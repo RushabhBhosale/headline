@@ -1,3 +1,5 @@
+import { NewsletterForm } from "@/components/newsletter-form";
+
 export default function ContactPage() {
   return (
     <main className="prose max-w-2xl mx-auto py-8">
@@ -23,6 +25,14 @@ export default function ContactPage() {
             <li>LinkedIn</li>
           </ul>
         </div> */}
+      </div>
+
+      <div className="mt-12 rounded-lg border border-zinc-200 p-6">
+        <h2 className="text-xl font-bold mb-2">Newsletter</h2>
+        <p className="text-zinc-600">
+          Get our top stories and clear context delivered to your inbox.
+        </p>
+        <NewsletterForm />
       </div>
     </main>
   );
