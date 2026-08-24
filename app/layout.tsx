@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SiteFooter, SiteNavigation } from "@/components/site-navigation";
 import { getSiteNavigationData } from "@/sanity/lib/queries";
 import "./globals.css";
@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   },
   description:
     "Independent reporting and clear context for the stories that matter.",
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light",
+  themeColor: "#f8f7f3",
 };
 
 export const revalidate = 60;

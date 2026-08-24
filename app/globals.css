@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --ink: #17171c;
   --ink-muted: #686872;
   --paper: #f8f7f3;
@@ -227,13 +228,6 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .category-story h2 a:hover { color: var(--accent); }
 .category-story > span { display: block; margin-top: 11px; color: var(--ink-muted); font-size: .88rem; line-height: 1.5; }
 .category-empty { min-height: 280px; padding-top: 54px; color: var(--ink-muted); font-family: var(--serif); font-size: 1.35rem; }
-
-@media (prefers-color-scheme: dark) {
-  :root { --ink: #f4f3ef; --ink-muted: #b6b5b9; --paper: #151518; --surface: #1e1e22; --surface-strong: #29282e; --line: #36353b; --accent: #ff9ab3; --accent-deep: #9d2542; --accent-soft: #332126; --signal: #ff9ab3; }
-  .site-header { background: color-mix(in srgb, var(--paper) 92%, transparent); }
-  .front-page-image, .card-image, .related-story-image, .article-image, .article-body-image > div { background: #39383d; }
-  .header-cta, .desk-story-link:hover { background: var(--accent-deep); }
-}
 
 @media (max-width: 960px) {
   .front-page { grid-template-columns: 1fr; gap: 48px; }
