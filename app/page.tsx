@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getHomepageData, type ArticleCard } from "@/sanity/lib/queries";
 import { urlForImage } from "@/sanity/lib/image";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 function formatDate(date?: string) {
   if (!date) return "Latest report";

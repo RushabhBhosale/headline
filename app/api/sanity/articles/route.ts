@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   }
 
   const articlesQuery = defineQuery(`
-    *[_type == "article" && status == "published"]
+    *[_type == "article" && !(_id in path("drafts.**"))]
       | order(publishedAt desc, _id asc)[0...${limit}] {
         "id": _id,
         title,

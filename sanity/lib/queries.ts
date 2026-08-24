@@ -96,8 +96,8 @@ export async function getHomepageData(): Promise<HomePageData> {
       "featuredStories": featuredStories[]->{${articleCardFields}},
       "trendingStories": trendingStories[]->{${articleCardFields}}
     },
-    "latestArticles": *[_type == "article" && status == "published"] | order(publishedAt desc)[0...12]{${articleCardFields}}
-  }`);
+    "latestArticles": *[_type == "article"] | order(publishedAt desc)[0...12]{${articleCardFields}}
+  }`, {}, { cache: "no-store", useCdn: false });
 }
 
 export async function getSiteNavigationData(): Promise<{ categories: CategoryLink[] }> {
@@ -110,23 +110,24 @@ export async function getCategoryPage(slug: string): Promise<CategoryPageData | 
   const data = await sanityClient.fetch<CategoryPageData>(
     `{
       "category": *[_type == "category" && slug.current == $slug][0]{_id, title, slug, description},
-      "articles": *[_type == "article" && status == "published" && category->slug.current == $slug] | order(publishedAt desc){${articleCardFields}}
+      "articles": *[_type == "article" && category->slug.current == $slug] | order(publishedAt desc){${articleCardFields}}
     }`,
-    { slug }
+    { slug },
+    { cache: "no-store", useCdn: false }
   );
   return data.category ? data : null;
 }
 
 export async function getSitemapData(): Promise<SitemapData> {
   return sanityClient.fetch(`{
-    "articles": *[_type == "article" && status == "published" && defined(slug.current)]{slug, publishedAt, updatedAt},
+    "articles": *[_type == "article" && defined(slug.current)]{slug, publishedAt, updatedAt},
     "categories": *[_type == "category" && defined(slug.current)]{_id, title, slug}
   }`, {}, { cache: "no-store", useCdn: false });
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
   return sanityClient.fetch(
-    `*[_type == "article" && slug.current == $slug && status == "published"][0]{
+    `*[_type == "article" && slug.current == $slug][0]{
       ${articleCardFields},
       body,
       topics[]->{title, slug},
@@ -134,11 +135,12 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
       correctionNote,
       updateNote,
       "relatedArticles": select(
-        count(*[_type == "article" && status == "published" && _id != ^._id && defined(^.category._ref) && category._ref == ^.category._ref]) > 0 =>
-          *[_type == "article" && status == "published" && _id != ^._id && category._ref == ^.category._ref] | order(publishedAt desc)[0...4]{${articleCardFields}},
-        *[_type == "article" && status == "published" && _id != ^._id] | order(publishedAt desc)[0...4]{${articleCardFields}}
+        count(*[_type == "article" && _id != ^._id && defined(^.category._ref) && category._ref == ^.category._ref]) > 0 =>
+          *[_type == "article" && _id != ^._id && category._ref == ^.category._ref] | order(publishedAt desc)[0...4]{${articleCardFields}},
+        *[_type == "article" && _id != ^._id] | order(publishedAt desc)[0...4]{${articleCardFields}}
       )
     }`,
-    { slug }
+    { slug },
+    { cache: "no-store", useCdn: false }
   );
 }

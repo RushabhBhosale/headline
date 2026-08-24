@@ -7,7 +7,7 @@ import { urlForImage } from "@/sanity/lib/image";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 function formatDate(date?: string) {
   if (!date) return "Latest report";
