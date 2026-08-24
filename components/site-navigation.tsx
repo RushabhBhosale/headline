@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { CategoryLink } from "@/sanity/lib/queries";
 
@@ -7,8 +8,14 @@ export function SiteNavigation({ categories }: { categories: CategoryLink[] }) {
       <header className="site-header">
         <div className="site-header-inner">
           <Link href="/" className="site-brand" aria-label="Headline home">
-            <span className="brand-mark" aria-hidden="true">H</span>
-            <span>Headline<span className="brand-dot">.</span></span>
+            <Image
+              src="/horizontal_logo.png"
+              alt="Headline Thread"
+              width={2172}
+              height={724}
+              className="site-brand-logo"
+              priority
+            />
           </Link>
         </div>
       </header>

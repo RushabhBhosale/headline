@@ -33,9 +33,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .site-header { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(16px); }
 .site-header-inner, .site-footer-inner { display: flex; width: min(1280px, calc(100% - 48px)); align-items: center; margin: 0 auto; }
 .site-header-inner { height: 48px; justify-content: flex-start; }
-.site-brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 1.5rem; font-weight: 700; letter-spacing: -.065em; }
-.brand-mark { display: grid; width: 29px; height: 29px; place-items: center; background: var(--ink); color: white; font-family: var(--sans); font-size: .7rem; font-weight: 800; letter-spacing: -.03em; }
-.brand-dot { color: var(--accent); }
+.site-brand { display: inline-flex; width: 236px; height: 48px; align-items: center; overflow: hidden; }
+.site-brand-logo { width: 236px; height: auto; }
 .category-bar { border-bottom: 1px solid var(--line); background: var(--surface); }
 .category-bar-inner { display: flex; width: min(1280px, calc(100% - 48px)); gap: 24px; align-items: center; min-height: 38px; margin: 0 auto; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
 .category-bar-inner::-webkit-scrollbar { display: none; }
@@ -259,8 +258,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 @media (max-width: 700px) {
   .site-content { min-height: calc(100vh - 156px); padding-bottom: 0; }
   .site-header-inner { width: min(100% - 32px, 1280px); height: 46px; }
-  .site-brand { font-size: 1.3rem; }
-  .brand-mark { width: 26px; height: 26px; }
+  .site-brand { width: 188px; height: 46px; }
+  .site-brand-logo { width: 188px; }
   .desktop-nav { display: none; }
   .header-cta { min-height: 44px; padding: 0 13px; font-size: .72rem; }
   .bottom-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 40; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent); padding: 7px max(12px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); backdrop-filter: blur(15px); }
