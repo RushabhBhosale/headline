@@ -33,7 +33,7 @@ export type PortableTextBlock = {
   style?: string;
   children?: { _key: string; _type?: string; text?: string; marks?: string[] }[];
   markDefs?: { _key: string; _type?: string; href?: string }[];
-  asset?: SanityImageSource;
+  asset?: SanityImageSource & { metadata?: { dimensions?: { width: number; height: number } } };
   alt?: string;
   caption?: string;
   credit?: string;
@@ -131,7 +131,13 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   return sanityClient.fetch(
     `*[_type == "article" && slug.current == $slug][0]{
       ${articleCardFields},
-      body,
+      body[]{
+        _type == "image" => {
+          _key, _type, alt, caption, credit,
+          asset->{metadata {dimensions}}
+        },
+        @
+      },
       topics[]->{title, slug},
       thread->{title, slug},
       correctionNote,

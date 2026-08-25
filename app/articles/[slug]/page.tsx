@@ -175,7 +175,7 @@ function PortableText({ blocks, inlineRelated }: { blocks?: PortableTextBlock[];
         if (block._type === "image" && block.asset) {
           return (
             <figure className="article-body-image" key={block._key}>
-              <div><Image src={urlForImage(block.asset).width(1400).url()} alt={block.alt || ""} fill sizes="(max-width: 800px) 100vw, 720px" /></div>
+              <div><Image src={urlForImage(block.asset).width(1400).url()} alt={block.alt || ""} width={block.asset?.metadata?.dimensions?.width || 1400} height={block.asset?.metadata?.dimensions?.height || 933} sizes="(max-width: 800px) 100vw, 720px" /></div>
               {(block.caption || block.credit) && <figcaption>{block.caption}{block.credit && <span>Photo: {block.credit}</span>}</figcaption>}
             </figure>
           );
