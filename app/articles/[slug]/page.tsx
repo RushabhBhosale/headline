@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { Fragment, type ReactNode } from "react";
 import { getArticleBySlug, type Article, type ArticleCard, type PortableTextBlock } from "@/sanity/lib/queries";
+import { sanityClient } from "@/sanity/lib/sanityClient";
 import { urlForImage } from "@/sanity/lib/image";
 import { StoryToc } from "@/components/story-toc";
 
@@ -36,6 +37,31 @@ function getSections(blocks?: PortableTextBlock[]) {
     .filter((block) => block.style === "h2")
     .map((block) => ({ id: slugify(block.children?.map((child) => child.text || "").join("") || ""), text: block.children?.map((child) => child.text || "").join("") || "" }))
     .filter((section) => section.text);
+}
+
+function extractImageIds(blocks?: PortableTextBlock[]): string[] {
+  const ids: string[] = [];
+  for (const block of blocks || []) {
+    if (block._type === "image" && block.asset && typeof block.asset === "object" && "_ref" in block.asset) {
+      const ref = (block.asset as { _ref: string })._ref;
+      const id = ref.replace(/^image-/, "").replace(/-\d+x\d+$/, "");
+      if (id) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+async function fetchImageDimensions(ids: string[]): Promise<Map<string, { width: number; height: number }>> {
+  if (!ids.length) return new Map();
+  const assets = await sanityClient.fetch<{ _id: string; metadata?: { dimensions?: { width: number; height: number } } }[]>(
+    `*[_type == "sanity.imageAsset" && _id in $ids]{ _id, metadata { dimensions } }`,
+    { ids },
+  );
+  const map = new Map<string, { width: number; height: number }>();
+  for (const asset of assets) {
+    if (asset.metadata?.dimensions) map.set(asset._id, asset.metadata.dimensions);
+  }
+  return map;
 }
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -165,7 +191,7 @@ function renderInline(block: PortableTextBlock) {
   });
 }
 
-function PortableText({ blocks, inlineRelated }: { blocks?: PortableTextBlock[]; inlineRelated?: ArticleCard }) {
+function PortableText({ blocks, inlineRelated, imageDimensions }: { blocks?: PortableTextBlock[]; inlineRelated?: ArticleCard; imageDimensions?: Map<string, { width: number; height: number }> }) {
   if (!blocks?.length) return null;
   let paragraphCount = 0;
 
@@ -173,9 +199,16 @@ function PortableText({ blocks, inlineRelated }: { blocks?: PortableTextBlock[];
     <div className="article-body">
       {blocks.map((block) => {
         if (block._type === "image" && block.asset) {
+          let w = 1400, h = 933;
+          if (typeof block.asset === "object" && "_ref" in block.asset) {
+            const ref = (block.asset as { _ref: string })._ref;
+            const id = ref.replace(/^image-/, "").replace(/-\d+x\d+$/, "");
+            const dim = imageDimensions?.get(id);
+            if (dim) { w = dim.width; h = dim.height; }
+          }
           return (
             <figure className="article-body-image" key={block._key}>
-              <div><Image src={urlForImage(block.asset).width(1400).url()} alt={block.alt || ""} width={block.asset?.metadata?.dimensions?.width || 1400} height={block.asset?.metadata?.dimensions?.height || 933} sizes="(max-width: 800px) 100vw, 720px" /></div>
+              <div><Image src={urlForImage(block.asset).width(1400).url()} alt={block.alt || ""} width={w} height={h} sizes="(max-width: 800px) 100vw, 720px" /></div>
               {(block.caption || block.credit) && <figcaption>{block.caption}{block.credit && <span>Photo: {block.credit}</span>}</figcaption>}
             </figure>
           );
@@ -205,6 +238,9 @@ export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) notFound();
+
+  const imageIds = extractImageIds(article.body);
+  const imageDimensions = await fetchImageDimensions(imageIds);
 
   const publishedDate = formatDate(article.publishedAt);
   const updatedDate = formatDate(article.updatedAt);
@@ -278,7 +314,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <ArticleSideRail title={article.title} url={canonicalUrl} sections={sections} />
           <div className="article-main">
             {!article.body?.length && article.excerpt && <p className="article-opening">{article.excerpt}</p>}
-            <PortableText blocks={article.body} inlineRelated={inlineRelated} />
+            <PortableText blocks={article.body} inlineRelated={inlineRelated} imageDimensions={imageDimensions} />
 
             {article.topics?.length ? <div className="topic-list"><span>Filed under</span>{article.topics.map((topic) => <span key={topic.slug?.current || topic.title}>{topic.title}</span>)}</div> : null}
 
