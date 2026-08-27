@@ -318,10 +318,9 @@ export default async function ArticlePage({ params }: PageProps) {
 
             {article.topics?.length ? <div className="topic-list"><span>Filed under</span>{article.topics.map((topic) => <span key={topic.slug?.current || topic.title}>{topic.title}</span>)}</div> : null}
 
-            {(article.correctionNote || article.updateNote) && (
+            {article.correctionNote && (
               <div className="article-notes">
-                {article.updateNote && <p><strong>Update</strong>{article.updateNote}</p>}
-                {article.correctionNote && <p className="correction-note"><strong>Correction</strong>{article.correctionNote}</p>}
+                <p className="correction-note"><strong>Correction</strong>{article.correctionNote}</p>
               </div>
             )}
           </div>
