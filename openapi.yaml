@@ -13,8 +13,9 @@ paths:
       operationId: listArticles
       summary: List published Headline articles
       description: |
-        Lists recent published articles (blogs), including the Sanity article ID
-        needed by attachArticleImage.
+        Lists recent published articles (blogs), including their full Portable
+        Text body and editorial notes, plus the Sanity article ID needed by
+        attachArticleImage.
       parameters:
         - name: limit
           in: query
@@ -116,6 +117,11 @@ components:
           type: string
         excerpt:
           type: string
+        body:
+          type: array
+          description: Full article content in Sanity Portable Text format.
+          items:
+            $ref: "#/components/schemas/PortableTextBlock"
         status:
           type: string
           const: published
@@ -127,6 +133,11 @@ components:
           format: date-time
         hasHeroImage:
           type: boolean
+        correctionNote:
+          type: string
+        updateNote:
+          type: string
+          description: Editorial note describing the latest article update.
         category:
           type: object
           properties:
@@ -134,6 +145,62 @@ components:
               type: string
             slug:
               type: string
+    PortableTextBlock:
+      type: object
+      description: A Sanity Portable Text block or content image from the article body.
+      required: [_key, _type]
+      properties:
+        _key:
+          type: string
+        _type:
+          type: string
+        style:
+          type: string
+        listItem:
+          type: string
+        level:
+          type: integer
+        children:
+          type: array
+          items:
+            type: object
+            properties:
+              _key:
+                type: string
+              _type:
+                type: string
+              text:
+                type: string
+              marks:
+                type: array
+                items:
+                  type: string
+        markDefs:
+          type: array
+          items:
+            type: object
+            properties:
+              _key:
+                type: string
+              _type:
+                type: string
+              href:
+                type: string
+                format: uri
+        asset:
+          type: object
+          description: Sanity asset reference for a content image.
+          properties:
+            _ref:
+              type: string
+            _type:
+              type: string
+        alt:
+          type: string
+        caption:
+          type: string
+        credit:
+          type: string
     ArticleListResponse:
       type: object
       required: [success, count, articles]

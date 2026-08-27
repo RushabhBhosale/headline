@@ -26,9 +26,12 @@ export async function GET(request: Request) {
         title,
         "slug": slug.current,
         excerpt,
+        body,
         status,
         publishedAt,
         updatedAt,
+        correctionNote,
+        updateNote,
         "hasHeroImage": defined(heroImage.asset),
         category->{title, "slug": slug.current}
       }
