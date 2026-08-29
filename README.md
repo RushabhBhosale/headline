@@ -74,9 +74,9 @@ curl -X POST http://localhost:3000/api/sanity/upload-image \
   -F "credit=Headline Thread"
 ```
 
-## Automated official-source article images
+## Mandatory real article images
 
-The automated workflow starts from `POST /api/workflows/article-images`. Configure a Sanity webhook for published `article` documents to call this URL and send `x-sanity-image-secret` with the value of `SANITY_IMAGE_WORKFLOW_SECRET`. The endpoint also accepts `Authorization: Bearer <SANITY_IMAGE_WORKFLOW_SECRET>` for a protected manual trigger.
+Every new article starts with `imageStatus: pending` and cannot be published without a hero image. Configure a Sanity webhook for draft `article` creates/updates that match `imageStatus == "pending" && !defined(heroImage.asset)` to call `POST /api/workflows/article-images`. Include drafts, send `x-sanity-image-secret` with `SANITY_IMAGE_WORKFLOW_SECRET`, and project at least `{ "_id": _id, "_type": _type }`. The endpoint also accepts `Authorization: Bearer <SANITY_IMAGE_WORKFLOW_SECRET>` for a protected manual trigger.
 
 The workflow needs these server-only variables in addition to the existing Sanity write credentials:
 
@@ -85,13 +85,13 @@ OPENROUTER_API_KEY=...              # Server-only OpenRouter key
 SANITY_IMAGE_WORKFLOW_SECRET=...    # Long random value shared only with the Sanity webhook
 ```
 
-The workflow checks registered official source pages first (for example, Samsung Mobile Press and Samsung Newsroom). Only if that produces no acceptable candidate does `OpenRouterSearchProvider` make one cached fallback discovery request using the exact `openrouter/free` model and OpenRouter's web plugin. It never asks a model to generate an image. The provider has a hard cap of `MAX_OPENROUTER_MODEL_CALLS_PER_ARTICLE = 2`; the current workflow makes at most one fallback request and reuses the result for body placements.
+The workflow never generates an image. It exhausts these real-image sources in order: expanded pages on configured official sources, OpenRouter-discovered official/public pages, individually licensed Wikimedia Commons files, then an allowlisted free-image-library source page. The first OpenRouter call handles official source discovery; the optional second call is limited to Unsplash, Pexels, and Pixabay after the prior stages fail. The provider has a hard cap of `MAX_OPENROUTER_MODEL_CALLS_PER_ARTICLE = 2`, disables workflow retries for those calls, and reuses every completed discovery stage for requested body images.
 
 OpenRouter's web plugin is a separate paid search service even when the selected model is free. This setup uses Exa in auto mode with at most five results; OpenRouter currently lists this at $0.007 per request (up to 10 results), plus model prompt tokens, so check [its current pricing](https://openrouter.ai/docs/guides/features/plugins/web-search) before enabling it in production. The model output is treated only as structured analysis and a list of cited source pages: returned domains and URLs are independently validated, then the existing rights, relevance, size, hash-deduplication, and Sanity-upload checks remain authoritative.
 
-Set an article's `imageStatus` to `pending` before publication. Optional `imageRequirements.heroQuery` and up to two `bodyImageQueries` override the generated official-source search queries.
+The workflow broadens source queries using the entity, subject, physical subject, newsroom, press-kit, product-image, and screenshot variations. Optional `imageRequirements.heroQuery` and up to two `bodyImageQueries` further direct it. A Wikimedia file is considered only when its individual API metadata carries an accepted free licence; free-library pages must expose their own licence/reuse terms.
 
-Only configuration-controlled official domains with press, promotional, media, or public-information evidence can be selected automatically. Candidates without that evidence, with low relevance, or with insufficient resolution are stored in `imageProcessing.reviewCandidates` and the article moves to `manual-review` or `partial`; no fallback stock image is used.
+Candidates without verifiable source, licence/reuse evidence, relevance, or sufficient resolution are stored in `imageProcessing.reviewCandidates`. If every permitted category is exhausted, the article moves to `manual-review`; it remains blocked from publication until an editor supplies an approved real hero image. No random search result, competing publication image, stock agency image, or AI-generated image is used.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

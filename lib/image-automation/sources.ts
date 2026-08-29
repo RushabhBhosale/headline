@@ -129,6 +129,19 @@ const BLOCKED_DISCOVERY_DOMAINS = new Set([
 
 const DISCOVERED_SOURCE_RIGHTS_HINTS = ["press", "media", "newsroom", "promotion", "key visual", "photo gallery", "public information"];
 
+export const wikimediaCommonsSource: OfficialSource = {
+  name: "Wikimedia Commons",
+  domain: "commons.wikimedia.org",
+  category: "india-news",
+  rightsHints: ["license", "creative commons", "public domain"],
+};
+
+export const approvedFreeImageSources: OfficialSource[] = [
+  { name: "Unsplash", domain: "unsplash.com", category: "india-news", rightsHints: ["license", "free to use"] },
+  { name: "Pexels", domain: "pexels.com", category: "india-news", rightsHints: ["license", "free to use"] },
+  { name: "Pixabay", domain: "pixabay.com", category: "india-news", rightsHints: ["license", "free for use"] },
+];
+
 function isMatchingDomain(host: string, domain: string) {
   return host === domain || host.endsWith(`.${domain}`);
 }
@@ -166,10 +179,26 @@ export function resolveOpenRouterSources(
   discovery: ArticleDiscovery | undefined,
   configuredSources: OfficialSource[],
   fallbackCategory: ImageAutomationCategory,
+  scope: "official" | "free-library" = "official",
 ) {
   if (!discovery) return { results: [] as SearchResult[], sources: [] as OfficialSource[] };
   const category = discovery.category || (fallbackCategory === "unknown" ? undefined : fallbackCategory);
   if (!category) return { results: [] as SearchResult[], sources: [] as OfficialSource[] };
+
+  if (scope === "free-library") {
+    const sources = approvedFreeImageSources.map((source) => ({ ...source, category }));
+    return {
+      results: results.filter((result) => {
+        try {
+          const url = new URL(result.url);
+          return url.protocol === "https:" && !url.username && !url.password && sources.some((source) => isMatchingDomain(url.hostname.toLowerCase(), source.domain));
+        } catch {
+          return false;
+        }
+      }),
+      sources,
+    };
+  }
 
   const configuredByDomain = configuredSources.reduce((entries, source) => {
     entries.set(source.domain, source);

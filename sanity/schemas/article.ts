@@ -43,6 +43,12 @@ export const article = defineType({
       options: {
         hotspot: true,
       },
+      validation: (rule) => rule.custom((value, context) => {
+        const document = context.document as { imageStatus?: unknown } | undefined;
+        if (document?.imageStatus === undefined || document.imageStatus === null) return true;
+        const hasAsset = Boolean(value && typeof value === "object" && "asset" in value && (value as { asset?: unknown }).asset);
+        return hasAsset || "A hero image is required before this article can be published.";
+      }),
     }),
     defineField({ name: "heroImageAlt", title: "Hero Image Alt", type: "string" }),
     defineField({ name: "heroImageCaption", title: "Hero Image Caption", type: "string" }),
@@ -51,6 +57,7 @@ export const article = defineType({
       name: "imageStatus",
       title: "Image Processing Status",
       type: "string",
+      initialValue: "pending",
       options: {
         list: [
           { title: "Pending", value: "pending" },

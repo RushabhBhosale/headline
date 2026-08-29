@@ -105,6 +105,8 @@ export class OpenRouterSearchProvider implements SearchProvider {
     }
     this.calls += 1;
 
+    const scope = options.scope || "official";
+    const queryVariations = [...new Set([query, ...(options.queryVariations || [])])].slice(0, 10);
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -118,7 +120,9 @@ export class OpenRouterSearchProvider implements SearchProvider {
         messages: [
           {
             role: "system",
-            content: "You are a source-discovery assistant for an editorial image pipeline. Never generate images. Use web results only to identify real, official, press, promotional, or public-information source pages. Never suggest stock, Pinterest, Reddit, news competitors, Getty, Reuters, AP, AFP, ESPN, or Cricbuzz. Return only valid JSON.",
+            content: scope === "free-library"
+              ? "You are a source-discovery assistant for an editorial image pipeline. Never generate images. Use web results only to identify real photographs on the explicitly allowlisted free-image libraries. Never suggest stock agencies, Pinterest, Reddit, news competitors, Getty, Reuters, AP, AFP, ESPN, or Cricbuzz. Return only valid JSON."
+              : "You are a source-discovery assistant for an editorial image pipeline. Never generate images. Use web results only to identify real, official, press, promotional, or public-information source pages. Never suggest stock, Pinterest, Reddit, news competitors, Getty, Reuters, AP, AFP, ESPN, or Cricbuzz. Return only valid JSON.",
           },
           {
             role: "user",
@@ -129,9 +133,12 @@ export class OpenRouterSearchProvider implements SearchProvider {
                 detectedCategory: this.context.category,
                 detectedPrimaryEntity: this.context.primaryEntity,
               },
-              requestedSearchQuery: query,
+              searchScope: scope,
+              requestedSearchQueries: queryVariations,
               configuredOfficialDomainsAlreadyTried: this.context.configuredDomains,
-              task: "Use the web results to identify up to five relevant official source pages. If no exact image source exists, identify the main physical subject for a clearly relevant real-photo fallback and official/public-information source pages. Return exactly {category,primaryEntity,subject,physicalSubject,searchQuery,preferredDomains,sourcePages:[{url,title}]}. Only put URLs that were found in web results into sourcePages.",
+              task: scope === "free-library"
+                ? "Search the approved free-image domains only for a genuinely relevant real photograph of the physical subject. Select an individual image page only when its licence or reuse terms are visible. Return exactly {category,primaryEntity,subject,physicalSubject,searchQuery,preferredDomains,sourcePages:[{url,title}]}. Only put URLs that were found in web results into sourcePages."
+                : "Search every requested query variation and each likely official domain independently. Prefer a story-specific official image, then an entity/product/event image, then an official product visual or screenshot. If no exact image source exists, identify the main physical subject for later real-photo fallback. Return exactly {category,primaryEntity,subject,physicalSubject,searchQuery,preferredDomains,sourcePages:[{url,title}]}. Only put URLs that were found in web results into sourcePages.",
             }),
           },
         ],
@@ -140,6 +147,7 @@ export class OpenRouterSearchProvider implements SearchProvider {
           engine: "exa",
           mode: "auto",
           max_results: Math.min(Math.max(options.count || 5, 1), 5),
+          ...(options.domains?.length ? { include_domains: options.domains.slice(0, 8) } : {}),
           exclude_domains: ["pinterest.com", "reddit.com", "gettyimages.com", "reuters.com", "apnews.com", "afp.com", "espn.com", "cricbuzz.com"],
         }],
       }),

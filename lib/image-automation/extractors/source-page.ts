@@ -4,6 +4,7 @@ import type { ExtractedImageCandidate, OfficialSource, ReviewCandidate, SearchRe
 const MAX_SOURCE_PAGES = 10;
 const MAX_HTML_BYTES = 1_500_000;
 const MAX_CANDIDATES_PER_PAGE = 24;
+const MAX_DIRECT_SOURCE_LINKS = 3;
 const IMAGE_URL_PATTERN = /\.(?:avif|gif|ico|jpe?g|png|svg|webp)(?:$|[?#])/i;
 const DISALLOWED_IMAGE_PATTERN = /(?:favicon|logo|icon|avatar|sprite|pixel|tracking|advert|banner-ad)/i;
 
@@ -31,6 +32,18 @@ function resolveImageUrl(value: string | undefined, pageUrl: string) {
   try {
     const url = new URL(value, pageUrl);
     if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function resolvePageUrl(value: string | undefined, pageUrl: string) {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value, pageUrl);
+    if (url.protocol !== "https:" || url.username || url.password) return undefined;
     url.hash = "";
     return url.toString();
   } catch {
@@ -68,6 +81,28 @@ function readPageText(html: string) {
       .replace(/\s+/g, " ")
       .trim(),
   ).slice(0, 5_000);
+}
+
+function searchTerms(queries: string[]) {
+  return [...new Set(queries
+    .flatMap((query) => query.toLowerCase().match(/[a-z0-9]{4,}/g) || [])
+    .filter((term) => !["official", "press", "image", "media", "photo", "photos", "product", "newsroom"].includes(term)))];
+}
+
+function directPageLinks(html: string, pageUrl: string, sources: OfficialSource[], queries: string[]) {
+  const terms = searchTerms(queries);
+  if (terms.length === 0) return [];
+  return [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((match) => {
+      const url = resolvePageUrl(match[1], pageUrl);
+      const title = decodeEntities(match[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()).slice(0, 300);
+      const score = terms.filter((term) => `${url || ""} ${title}`.toLowerCase().includes(term)).length;
+      return { url, title, score };
+    })
+    .filter((link): link is { url: string; title: string; score: number } => Boolean(link.url) && link.score > 0 && Boolean(findTrustedSource(link.url!, sources)))
+    .sort((left, right) => right.score - left.score)
+    .filter((link, index, links) => links.findIndex((candidate) => candidate.url === link.url) === index)
+    .slice(0, MAX_DIRECT_SOURCE_LINKS);
 }
 
 function collectStructuredImages(value: unknown, pageUrl: string, urls: string[] = [], depth = 0): string[] {
@@ -209,6 +244,29 @@ async function readHtml(url: string) {
   return new TextDecoder().decode(data);
 }
 
+export async function discoverDirectSourcePages(sources: OfficialSource[], queries: string[]): Promise<SearchResult[]> {
+  const pages: SearchResult[] = sources.map((source) => ({
+    url: `https://${source.domain}${source.pathPrefix || "/"}`,
+    title: source.name,
+    description: "Configured official source",
+  }));
+
+  for (const page of [...pages]) {
+    try {
+      const html = await readHtml(page.url);
+      pages.push(...directPageLinks(html, page.url, sources, queries).map((link) => ({
+        url: link.url,
+        title: link.title || "Official source page",
+        description: "Relevant page discovered from the official source site",
+      })));
+    } catch {
+      // Extraction records source-page failures with the candidate review details.
+    }
+  }
+
+  return pages.filter((page, index, values) => values.findIndex((candidate) => candidate.url === page.url) === index);
+}
+
 function getRightsEvidence(source: OfficialSource, pageUrl: string, pageText: string) {
   const haystack = `${pageUrl} ${pageText}`.toLowerCase();
   return source.rightsHints.filter((hint) => haystack.includes(hint.toLowerCase()));
@@ -238,7 +296,10 @@ export async function extractCandidatesFromSourcePages(
       const html = await readHtml(result.url);
       const pageTitle = readPageTitle(html) || result.title;
       const pageText = readPageText(html);
-      const rightsEvidence = getRightsEvidence(source, result.url, `${pageTitle} ${pageText}`);
+      const rightsEvidence = [
+        ...getRightsEvidence(source, result.url, `${pageTitle} ${pageText}`),
+        ...(result.licenseInfo ? ["Verified source metadata licence"] : []),
+      ];
       if (rightsEvidence.length === 0) {
         reviewCandidates.push({
           placement,
@@ -260,8 +321,8 @@ export async function extractCandidatesFromSourcePages(
         pageText: pageText.slice(0, 1_000),
         publishedAt: result.publishedAt,
         rightsEvidence,
-        licenseInfo: contextualText(pageText, /[^.]{0,160}\b(?:licen[cs]e|copyright|rights reserved)\b[^.]{0,220}/i),
-        attributionRequirement: contextualText(pageText, /[^.]{0,160}\b(?:credit|attribution)\b[^.]{0,220}/i),
+        licenseInfo: result.licenseInfo || contextualText(pageText, /[^.]{0,160}\b(?:licen[cs]e|copyright|rights reserved)\b[^.]{0,220}/i),
+        attributionRequirement: result.attributionRequirement || contextualText(pageText, /[^.]{0,160}\b(?:credit|attribution)\b[^.]{0,220}/i),
       };
       candidates.push(...extractImageCandidates(html, sourcePage));
     } catch (error) {

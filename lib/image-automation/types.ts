@@ -76,6 +76,8 @@ export type ArticleForImageAutomation = {
 export type SearchOptions = {
   domains?: string[];
   count?: number;
+  scope?: "official" | "free-library";
+  queryVariations?: string[];
 };
 
 export type SearchResult = {
@@ -83,6 +85,8 @@ export type SearchResult = {
   title: string;
   description?: string;
   publishedAt?: string;
+  licenseInfo?: string;
+  attributionRequirement?: string;
 };
 
 export type ArticleDiscovery = {

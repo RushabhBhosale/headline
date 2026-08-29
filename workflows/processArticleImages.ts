@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { getWorkflowMetadata } from "workflow";
 import { getSanityServerClient } from "@/sanity/lib/sanityServerClient";
 import { uploadSanityImage } from "@/sanity/lib/imageUpload";
-import { extractCandidatesFromSourcePages } from "@/lib/image-automation/extractors/source-page";
+import { discoverDirectSourcePages, extractCandidatesFromSourcePages } from "@/lib/image-automation/extractors/source-page";
 import { inspectAndRankCandidates } from "@/lib/image-automation/ranking/candidates";
 import { OpenRouterSearchProvider } from "@/lib/image-automation/search/openrouter";
-import { detectCategory, getDirectSourcePages, getTrustedSources, resolveOpenRouterSources } from "@/lib/image-automation/sources";
+import { discoverWikimediaCommons } from "@/lib/image-automation/search/wikimedia";
+import { approvedFreeImageSources, detectCategory, getTrustedSources, resolveOpenRouterSources } from "@/lib/image-automation/sources";
 import type {
   ArticleBodyBlock,
   ArticleForImageAutomation,
@@ -29,10 +30,9 @@ type PlacementResult = {
   contentHash?: string;
   reviewCandidates: ReviewCandidate[];
   reason?: string;
-  fallbackDiscovery?: FallbackDiscovery;
 };
 
-type FallbackDiscovery = {
+type SourceDiscovery = {
   results: SearchResult[];
   sources: OfficialSource[];
   analysis?: ArticleDiscovery;
@@ -79,6 +79,34 @@ function automaticQuery(category: ProcessingPlan["category"], entity: string, bo
       unknown: "official press image",
     }[category];
   return `${entity} ${suffix}`.trim();
+}
+
+function uniqueQueries(queries: Array<string | undefined>) {
+  return queries
+    .map((query) => compactText(query))
+    .filter(Boolean)
+    .filter((query, index, values) => values.findIndex((candidate) => candidate.toLowerCase() === query.toLowerCase()) === index)
+    .slice(0, 10);
+}
+
+function sourceQueryVariations(plan: ProcessingPlan, analysis?: ArticleDiscovery) {
+  const entity = analysis?.primaryEntity || plan.primaryEntity;
+  const subject = analysis?.subject || entity;
+  const physicalSubject = analysis?.physicalSubject || subject;
+  return uniqueQueries([
+    plan.heroQuery,
+    analysis?.searchQuery,
+    `${entity} official press image`,
+    `${entity} newsroom photos`,
+    `${entity} media kit`,
+    `${subject} official product image`,
+    `${subject} official screenshot`,
+    `${physicalSubject} official image`,
+  ]);
+}
+
+function freeImageQuery(plan: ProcessingPlan, analysis?: ArticleDiscovery) {
+  return analysis?.physicalSubject || analysis?.subject || analysis?.primaryEntity || plan.primaryEntity;
 }
 
 function makeSourceRecord(
@@ -135,7 +163,7 @@ async function claimArticle(articleId: string, workflowRunId: string): Promise<C
   const article = await client.getDocument<ArticleForImageAutomation>(articleId);
   if (!article) return { state: "missing" };
   if (article._type !== "article") return { state: "not-article" };
-  if (article.imageStatus === "complete") return { state: "complete" };
+  if (article.imageStatus === "complete" && article.heroImage?.asset?._ref) return { state: "complete" };
   if (article.imageStatus === "processing" && article.imageProcessing?.workflowRunId !== workflowRunId) return { state: "running" };
 
   if (article.imageStatus !== "processing") {
@@ -187,7 +215,9 @@ async function discoverWithOpenRouter(
   plan: ProcessingPlan,
   articleTitle: string,
   configuredSources: OfficialSource[],
-): Promise<FallbackDiscovery> {
+  scope: "official" | "free-library",
+  analysis?: ArticleDiscovery,
+): Promise<SourceDiscovery> {
   "use step";
   try {
     const provider = new OpenRouterSearchProvider({
@@ -197,13 +227,19 @@ async function discoverWithOpenRouter(
       primaryEntity: plan.primaryEntity,
       configuredDomains: configuredSources.map((source) => source.domain),
     });
-    const discovery = await provider.search(query, { count: 5 });
-    const resolved = resolveOpenRouterSources(discovery.results, discovery.analysis, configuredSources, plan.category);
+    const discovery = await provider.search(query, {
+      count: 5,
+      scope,
+      queryVariations: scope === "official" ? sourceQueryVariations(plan, analysis) : uniqueQueries([query, `${query} real photograph`]),
+      domains: scope === "free-library" ? approvedFreeImageSources.map((source) => source.domain) : undefined,
+    });
+    const resolved = resolveOpenRouterSources(discovery.results, discovery.analysis, configuredSources, plan.category, scope);
     const error = resolved.results.length === 0
-      ? "OpenRouter did not return a cited, validated official source page."
+      ? `OpenRouter did not return a cited, validated ${scope === "official" ? "official" : "free-image-library"} source page.`
       : undefined;
     console.info("Image automation: OpenRouter fallback discovery complete", {
       query,
+      scope,
       results: resolved.results.length,
       sources: resolved.sources.length,
       category: discovery.analysis?.category,
@@ -221,6 +257,26 @@ async function discoverWithOpenRouter(
 // The result is cached by the workflow after its one allowed discovery attempt.
 // Never let a workflow-step retry make an additional paid web-search request.
 Object.assign(discoverWithOpenRouter, { maxRetries: 0 });
+
+async function discoverRegisteredSourcePages(sources: OfficialSource[], queries: string[]): Promise<SourceDiscovery> {
+  "use step";
+  const results = await discoverDirectSourcePages(sources, queries);
+  console.info("Image automation: registered-source discovery complete", { sources: sources.length, results: results.length });
+  return { results, sources };
+}
+
+async function discoverCommonsSources(plan: ProcessingPlan, analysis?: ArticleDiscovery): Promise<SourceDiscovery> {
+  "use step";
+  try {
+    const discovery = await discoverWikimediaCommons(analysis, plan.primaryEntity, analysis?.category || plan.category);
+    console.info("Image automation: Wikimedia Commons discovery complete", { results: discovery.results.length, subject: analysis?.physicalSubject || analysis?.subject });
+    return discovery;
+  } catch (error) {
+    const message = asSafeError(error);
+    console.warn("Image automation: Wikimedia Commons discovery unavailable", { error: message });
+    return { results: [], sources: [], analysis, error: message };
+  }
+}
 
 async function extractOfficialCandidates(
   results: SearchResult[],
@@ -352,55 +408,35 @@ async function processPlacement(
   query: string,
   existingUrls: string[],
   existingHashes: string[],
-  cachedFallback?: FallbackDiscovery,
+  discoveries: SourceDiscovery[],
 ): Promise<PlacementResult> {
-  const sources = getTrustedSources(plan.category, plan.articleText);
   const reviewCandidates: ReviewCandidate[] = [];
 
-  if (sources.length > 0) {
-    const directExtraction = await extractOfficialCandidates(getDirectSourcePages(sources), sources, placement, query);
-    const directSelection = await selectCandidate(
-      directExtraction.candidates,
+  for (const discovery of discoveries) {
+    if (discovery.results.length === 0 || discovery.sources.length === 0) continue;
+    const extraction = await extractOfficialCandidates(discovery.results, discovery.sources, placement, query);
+    const selection = await selectCandidate(
+      extraction.candidates,
       placement,
       query,
       article.title || plan.primaryEntity,
-      plan.primaryEntity,
+      discovery.analysis?.primaryEntity || plan.primaryEntity,
       existingUrls,
       existingHashes,
     );
-    reviewCandidates.push(...directExtraction.reviewCandidates, ...directSelection.reviewCandidates);
-    if (directSelection.selected) {
-      const attachment = await attachCandidate(article._id, placement, query, directSelection.selected, article.title || plan.primaryEntity);
-      return { ...attachment, reviewCandidates, fallbackDiscovery: cachedFallback };
-    }
+    reviewCandidates.push(...extraction.reviewCandidates, ...selection.reviewCandidates);
+    if (!selection.selected) continue;
+
+    const attachment = await attachCandidate(article._id, placement, query, selection.selected, article.title || plan.primaryEntity);
+    return { ...attachment, reviewCandidates };
   }
 
-  const fallback = cachedFallback || await discoverWithOpenRouter(query, plan, article.title || plan.primaryEntity, sources);
-  if (fallback.error) {
-    return { attached: false, reason: fallback.error, reviewCandidates, fallbackDiscovery: fallback };
-  }
-  const fallbackExtraction = await extractOfficialCandidates(fallback.results, fallback.sources, placement, query);
-  const fallbackSelection = await selectCandidate(
-    fallbackExtraction.candidates,
-    placement,
-    query,
-    article.title || plan.primaryEntity,
-    fallback.analysis?.primaryEntity || plan.primaryEntity,
-    existingUrls,
-    existingHashes,
-  );
-  reviewCandidates.push(...fallbackExtraction.reviewCandidates, ...fallbackSelection.reviewCandidates);
-  if (!fallbackSelection.selected) {
-    return {
-      attached: false,
-      reason: "No rights-cleared, relevant direct or OpenRouter-discovered candidate met the automatic-publishing threshold.",
-      reviewCandidates,
-      fallbackDiscovery: fallback,
-    };
-  }
-
-  const attachment = await attachCandidate(article._id, placement, query, fallbackSelection.selected, article.title || plan.primaryEntity);
-  return { ...attachment, reviewCandidates, fallbackDiscovery: fallback };
+  const errors = discoveries.map((discovery) => discovery.error).filter((error): error is string => Boolean(error));
+  return {
+    attached: false,
+    reason: errors[0] || "All permitted real-image sources were exhausted without a rights-cleared, relevant candidate.",
+    reviewCandidates,
+  };
 }
 
 export async function processArticleImagesWorkflow(articleId: string) {
@@ -416,25 +452,58 @@ export async function processArticleImagesWorkflow(articleId: string) {
     const existingUrls = existingSources.map((source) => source.sourceImageUrl).filter((value): value is string => Boolean(value));
     const existingHashes = existingSources.map((source) => source.contentHash).filter((value): value is string => Boolean(value));
     const reviewCandidates: ReviewCandidate[] = [];
-    let fallbackDiscovery: FallbackDiscovery | undefined;
+    const configuredSources = getTrustedSources(plan.category, plan.articleText);
+    const discoveries: SourceDiscovery[] = [await discoverRegisteredSourcePages(configuredSources, sourceQueryVariations(plan))];
 
-    const hero = claim.article.heroImage?.asset?._ref
+    let hero = claim.article.heroImage?.asset?._ref
       ? { attached: true, reviewCandidates: [] }
-      : await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, fallbackDiscovery);
-    fallbackDiscovery = hero.fallbackDiscovery || fallbackDiscovery;
+      : await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, discoveries);
     reviewCandidates.push(...hero.reviewCandidates);
     if (hero.imageUrl) existingUrls.push(hero.imageUrl);
     if (hero.contentHash) existingHashes.push(hero.contentHash);
 
     if (!hero.attached) {
-      await finishProcessing(articleId, workflowRunId, "manual-review", hero.reason, reviewCandidates);
+      const officialDiscovery = await discoverWithOpenRouter(plan.heroQuery, plan, claim.article.title || plan.primaryEntity, configuredSources, "official");
+      discoveries.push(officialDiscovery);
+      const officialStages = [officialDiscovery];
+      if (officialDiscovery.sources.length > 0) {
+        const expandedOfficialDiscovery = await discoverRegisteredSourcePages(officialDiscovery.sources, sourceQueryVariations(plan, officialDiscovery.analysis));
+        discoveries.push(expandedOfficialDiscovery);
+        officialStages.push(expandedOfficialDiscovery);
+      }
+      hero = await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, officialStages);
+      reviewCandidates.push(...hero.reviewCandidates);
+      if (hero.imageUrl) existingUrls.push(hero.imageUrl);
+      if (hero.contentHash) existingHashes.push(hero.contentHash);
+    }
+
+    if (!hero.attached) {
+      const commonsDiscovery = await discoverCommonsSources(plan, discoveries.find((discovery) => discovery.analysis)?.analysis);
+      discoveries.push(commonsDiscovery);
+      hero = await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, [commonsDiscovery]);
+      reviewCandidates.push(...hero.reviewCandidates);
+      if (hero.imageUrl) existingUrls.push(hero.imageUrl);
+      if (hero.contentHash) existingHashes.push(hero.contentHash);
+    }
+
+    if (!hero.attached) {
+      const analysis = discoveries.find((discovery) => discovery.analysis)?.analysis;
+      const freeDiscovery = await discoverWithOpenRouter(freeImageQuery(plan, analysis), plan, claim.article.title || plan.primaryEntity, [], "free-library", analysis);
+      discoveries.push(freeDiscovery);
+      hero = await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, [freeDiscovery]);
+      reviewCandidates.push(...hero.reviewCandidates);
+      if (hero.imageUrl) existingUrls.push(hero.imageUrl);
+      if (hero.contentHash) existingHashes.push(hero.contentHash);
+    }
+
+    if (!hero.attached) {
+      await finishProcessing(articleId, workflowRunId, "manual-review", "Hero image is required, but every permitted source category was exhausted. " + (hero.reason || ""), reviewCandidates);
       return { articleId, status: "manual-review" };
     }
 
     let bodyFailures = 0;
     for (const bodyQuery of plan.bodyImageQueries) {
-      const body = await processPlacement(claim.article, plan, "body", bodyQuery, existingUrls, existingHashes, fallbackDiscovery);
-      fallbackDiscovery = body.fallbackDiscovery || fallbackDiscovery;
+      const body = await processPlacement(claim.article, plan, "body", bodyQuery, existingUrls, existingHashes, discoveries);
       reviewCandidates.push(...body.reviewCandidates);
       if (body.imageUrl) existingUrls.push(body.imageUrl);
       if (body.contentHash) existingHashes.push(body.contentHash);

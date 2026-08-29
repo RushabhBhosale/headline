@@ -17,7 +17,7 @@ function getArticleId(payload: unknown) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
   const input = payload as { _id?: unknown; documentId?: unknown; ids?: unknown; _type?: unknown; transition?: unknown };
   if (input._type !== undefined && input._type !== "article") return undefined;
-  if (input.transition !== undefined && input.transition !== "publish") return undefined;
+  if (input.transition !== undefined && !["publish", "create", "update"].includes(input.transition as string)) return undefined;
   const candidate = typeof input._id === "string"
     ? input._id
     : typeof input.documentId === "string"
@@ -38,9 +38,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid JSON request body" }, { status: 400 });
   }
   const articleId = getArticleId(payload);
-  if (!articleId) return Response.json({ skipped: true, reason: "Expected a published article ID" });
-  if (articleId.startsWith("drafts.")) return Response.json({ skipped: true, reason: "Draft documents are not processed" });
-
+  if (!articleId) return Response.json({ skipped: true, reason: "Expected an article ID" });
   const run = await start(processArticleImagesWorkflow, [articleId]);
   console.info("Image automation: workflow started", { articleId, workflowRunId: run.runId });
   return Response.json({ accepted: true, articleId, workflowRunId: run.runId }, { status: 202 });
