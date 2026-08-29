@@ -91,7 +91,7 @@ OpenRouter's web plugin is a separate paid search service even when the selected
 
 The workflow broadens source queries using the entity, subject, physical subject, newsroom, press-kit, product-image, and screenshot variations. Optional `imageRequirements.heroQuery` and up to two `bodyImageQueries` further direct it. A Wikimedia file is considered only when its individual API metadata carries an accepted free licence; free-library pages must expose their own licence/reuse terms.
 
-Candidates without verifiable source, licence/reuse evidence, relevance, or sufficient resolution are stored in `imageProcessing.reviewCandidates`. If every permitted category is exhausted, the article moves to `manual-review`; it remains blocked from publication until an editor supplies an approved real hero image. No random search result, competing publication image, stock agency image, or AI-generated image is used.
+Candidates without a verifiable source, licence/reuse evidence, or sufficient resolution are stored in `imageProcessing.reviewCandidates`. After all permitted categories fail their normal relevance threshold, the mandatory hero-image pass may select the strongest remaining rights-cleared image even when its relevance score is low. No random search result, competing publication image, stock agency image, or AI-generated image is used.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

@@ -298,12 +298,14 @@ async function selectCandidate(
   primaryEntity: string,
   existingUrls: string[],
   existingHashes: string[],
+  allowLowRelevanceFallback = false,
 ) {
   "use step";
-  const selection = await inspectAndRankCandidates(candidates, placement, query, articleTitle, primaryEntity, existingUrls, existingHashes);
+  const selection = await inspectAndRankCandidates(candidates, placement, query, articleTitle, primaryEntity, existingUrls, existingHashes, { allowLowRelevanceFallback });
   console.info("Image automation: candidate ranking complete", {
     query,
     placement,
+    allowLowRelevanceFallback,
     selected: selection.selected ? { imageUrl: selection.selected.imageUrl, score: selection.selected.score } : undefined,
     rejected: selection.reviewCandidates.map((candidate) => ({ imageUrl: candidate.sourceImageUrl, reason: candidate.reason, score: candidate.score })),
   });
@@ -409,6 +411,7 @@ async function processPlacement(
   existingUrls: string[],
   existingHashes: string[],
   discoveries: SourceDiscovery[],
+  allowLowRelevanceFallback = false,
 ): Promise<PlacementResult> {
   const reviewCandidates: ReviewCandidate[] = [];
 
@@ -423,6 +426,7 @@ async function processPlacement(
       discovery.analysis?.primaryEntity || plan.primaryEntity,
       existingUrls,
       existingHashes,
+      allowLowRelevanceFallback,
     );
     reviewCandidates.push(...extraction.reviewCandidates, ...selection.reviewCandidates);
     if (!selection.selected) continue;
@@ -491,6 +495,13 @@ export async function processArticleImagesWorkflow(articleId: string) {
       const freeDiscovery = await discoverWithOpenRouter(freeImageQuery(plan, analysis), plan, claim.article.title || plan.primaryEntity, [], "free-library", analysis);
       discoveries.push(freeDiscovery);
       hero = await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, [freeDiscovery]);
+      reviewCandidates.push(...hero.reviewCandidates);
+      if (hero.imageUrl) existingUrls.push(hero.imageUrl);
+      if (hero.contentHash) existingHashes.push(hero.contentHash);
+    }
+
+    if (!hero.attached) {
+      hero = await processPlacement(claim.article, plan, "hero", plan.heroQuery, existingUrls, existingHashes, discoveries, true);
       reviewCandidates.push(...hero.reviewCandidates);
       if (hero.imageUrl) existingUrls.push(hero.imageUrl);
       if (hero.contentHash) existingHashes.push(hero.contentHash);

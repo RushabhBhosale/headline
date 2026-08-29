@@ -9,6 +9,10 @@ export type CandidateSelection = {
   reviewCandidates: ReviewCandidate[];
 };
 
+type CandidateSelectionOptions = {
+  allowLowRelevanceFallback?: boolean;
+};
+
 function words(value: string) {
   return [...new Set(value.toLowerCase().match(/[a-z0-9]{3,}/g) || [])];
 }
@@ -81,6 +85,7 @@ export async function inspectAndRankCandidates(
   primaryEntity: string,
   existingUrls: string[],
   existingHashes: string[],
+  options: CandidateSelectionOptions = {},
 ): Promise<CandidateSelection> {
   const reviews: ReviewCandidate[] = [];
   const inspected: InspectedImageCandidate[] = [];
@@ -107,11 +112,11 @@ export async function inspectAndRankCandidates(
       }
 
       const ranking = calculateScore(candidate, image, placement, articleTitle, primaryEntity);
-      if (ranking.relevance < 0.3) {
+      if (!options.allowLowRelevanceFallback && ranking.relevance < 0.3) {
         reviews.push(toReview(candidate, placement, query, "Image context is not sufficiently relevant to the article entity.", ranking.score));
         continue;
       }
-      if (ranking.score < 60) {
+      if (!options.allowLowRelevanceFallback && ranking.score < 60) {
         reviews.push(toReview(candidate, placement, query, "Candidate score is below the automatic-publishing threshold.", ranking.score));
         continue;
       }
