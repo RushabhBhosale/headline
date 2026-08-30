@@ -47,6 +47,7 @@ export function SiteNavigation({ categories, latestHeadline }: { categories: Cat
       <nav className="category-bar" aria-label="Categories">
         <div className="category-bar-inner">
           <Link href="/">Top stories</Link>
+          <Link href="/blogs">All blogs</Link>
           {categories.map((category) => (
             <Link href={`/categories/${category.slug.current}`} key={category._id}>
               {category.title}
@@ -71,6 +72,7 @@ export function SiteFooter({ categories }: { categories: CategoryLink[] }) {
             <p className="footer-heading">Sections</p>
             <ul>
               <li><Link href="/">Top stories</Link></li>
+              <li><Link href="/blogs">All blogs</Link></li>
               {categories.slice(0, 5).map((category) => (
                 <li key={category._id}><Link href={`/categories/${category.slug.current}`}>{category.title}</Link></li>
               ))}
