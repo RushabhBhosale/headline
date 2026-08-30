@@ -8,6 +8,39 @@ servers:
   - url: https://www.headlinethread.co.in
     description: Replace with the public HTTPS domain of your deployed Headline site.
 paths:
+  /api/workflows/article-images:
+    post:
+      operationId: startArticleImageWorkflow
+      summary: Start official-source image processing for a published article
+      description: |
+        Protected Sanity-webhook/manual trigger. It queues a durable Vercel Workflow
+        and returns immediately; the workflow records its state on the article.
+      security:
+        - SanityImageWorkflowSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [_id]
+              properties:
+                _id:
+                  type: string
+                  description: Published Sanity article document ID.
+                _type:
+                  type: string
+                  const: article
+                transition:
+                  type: string
+                  const: publish
+      responses:
+        "202":
+          description: Workflow accepted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/sanity/articles:
     get:
       operationId: listArticles
@@ -103,6 +136,11 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 components:
+  securitySchemes:
+    SanityImageWorkflowSecret:
+      type: apiKey
+      in: header
+      name: x-sanity-image-secret
   schemas:
     ArticleSummary:
       type: object
@@ -402,6 +440,12 @@ components:
             $ref: "#/components/schemas/Error"
     ServerError:
       description: Unexpected server or Sanity error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: The workflow secret is missing or invalid.
       content:
         application/json:
           schema:

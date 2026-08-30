@@ -1,4 +1,5 @@
 import { lookup } from "node:dns/promises";
+import { createHash } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
@@ -26,6 +27,14 @@ export type UploadedImage = {
   url: string;
   width: number;
   height: number;
+};
+
+export type RemoteImageInspection = {
+  contentType: string;
+  size: number;
+  width: number;
+  height: number;
+  sha256: string;
 };
 
 export class ImageApiError extends Error {
@@ -311,6 +320,87 @@ async function downloadRemoteImage(imageUrl: string) {
   }
 
   throw new ImageApiError(400, "Unable to download image");
+}
+
+function getPngDimensions(data: Buffer) {
+  if (data.length < 24 || data.toString("ascii", 1, 4) !== "PNG") return null;
+  return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
+}
+
+function getJpegDimensions(data: Buffer) {
+  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) return null;
+
+  let offset = 2;
+  while (offset + 9 < data.length) {
+    if (data[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+
+    let marker = data[offset + 1];
+    offset += 2;
+    while (marker === 0xff && offset < data.length) {
+      marker = data[offset];
+      offset += 1;
+    }
+    if (marker === 0xd8 || marker === 0xd9) continue;
+    if (offset + 2 > data.length) return null;
+
+    const length = data.readUInt16BE(offset);
+    if (length < 2 || offset + length > data.length) return null;
+    if (marker >= 0xc0 && marker <= 0xc3) {
+      return { width: data.readUInt16BE(offset + 5), height: data.readUInt16BE(offset + 3) };
+    }
+    offset += length;
+  }
+  return null;
+}
+
+function getWebpDimensions(data: Buffer) {
+  if (data.length < 30 || data.toString("ascii", 0, 4) !== "RIFF" || data.toString("ascii", 8, 12) !== "WEBP") {
+    return null;
+  }
+
+  const format = data.toString("ascii", 12, 16);
+  if (format === "VP8X") {
+    return {
+      width: 1 + data.readUIntLE(24, 3),
+      height: 1 + data.readUIntLE(27, 3),
+    };
+  }
+  if (format === "VP8 ") {
+    if (data.length < 30 || data[23] !== 0x9d || data[24] !== 0x01 || data[25] !== 0x2a) return null;
+    return { width: data.readUInt16LE(26) & 0x3fff, height: data.readUInt16LE(28) & 0x3fff };
+  }
+  if (format === "VP8L") {
+    if (data.length < 25 || data[20] !== 0x2f) return null;
+    const bits = data.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  return null;
+}
+
+function getImageDimensions(data: Buffer, contentType: string) {
+  if (contentType === "image/png") return getPngDimensions(data);
+  if (contentType === "image/jpeg") return getJpegDimensions(data);
+  if (contentType === "image/webp") return getWebpDimensions(data);
+  return null;
+}
+
+export async function inspectRemoteImage(imageUrl: string): Promise<RemoteImageInspection> {
+  const image = await downloadRemoteImage(imageUrl);
+  const dimensions = getImageDimensions(image.data, image.contentType);
+  if (!dimensions || dimensions.width < 1 || dimensions.height < 1) {
+    throw new ImageApiError(415, "Image dimensions could not be read");
+  }
+
+  return {
+    contentType: image.contentType,
+    size: image.data.length,
+    width: dimensions.width,
+    height: dimensions.height,
+    sha256: createHash("sha256").update(image.data).digest("hex"),
+  };
 }
 
 function createAssetResponse(asset: SanityImageAssetDocument): UploadedImage {
