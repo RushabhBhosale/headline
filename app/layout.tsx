@@ -5,7 +5,11 @@ import { getSiteNavigationData } from "@/sanity/lib/queries";
 import "./globals.css";
 import Script from "next/script";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 const newsreader = Newsreader({
   subsets: ["latin"],
   style: ["normal", "italic"],
@@ -30,7 +34,9 @@ export const viewport: Viewport = {
 export const revalidate = 60;
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  let navigation: Awaited<ReturnType<typeof getSiteNavigationData>> = { categories: [] };
+  let navigation: Awaited<ReturnType<typeof getSiteNavigationData>> = {
+    categories: [],
+  };
   try {
     navigation = await getSiteNavigationData();
   } catch {}
@@ -39,6 +45,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${inter.variable} ${newsreader.variable}`}>
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=G-9X1TWY7CWK"
+        strategy="afterInteractive"
+      />
+
+      <Script
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1425611919231559"
+        crossOrigin="anonymous"
         strategy="afterInteractive"
       />
 
@@ -51,7 +64,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         `}
       </Script>
       <body>
-        <SiteNavigation categories={navigation.categories} latestHeadline={navigation.latestHeadline} />
+        <SiteNavigation
+          categories={navigation.categories}
+          latestHeadline={navigation.latestHeadline}
+        />
         <div className="site-content">{children}</div>
         <SiteFooter categories={navigation.categories} />
       </body>
