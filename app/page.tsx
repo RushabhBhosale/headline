@@ -7,20 +7,38 @@ export const revalidate = 0;
 
 function formatDate(date?: string) {
   if (!date) return "";
-  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(date));
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
 }
 
 function formatShortDate(date?: string) {
   if (!date) return "";
-  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(new Date(date));
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(date));
 }
 
 function storyHref(article: ArticleCard) {
   return `/articles/${article.slug.current}`;
 }
 
-function StoryImage({ article, priority = false }: { article: ArticleCard; priority?: boolean }) {
-  if (!article.heroImage) return <div className="story-image-fallback" aria-hidden="true"><span>Headline</span></div>;
+function StoryImage({
+  article,
+  priority = false,
+}: {
+  article: ArticleCard;
+  priority?: boolean;
+}) {
+  if (!article.heroImage)
+    return (
+      <div className="story-image-fallback" aria-hidden="true">
+        <span>Headline</span>
+      </div>
+    );
 
   return (
     <Image
@@ -34,7 +52,12 @@ function StoryImage({ article, priority = false }: { article: ArticleCard; prior
 }
 
 function RailThumb({ article }: { article: ArticleCard }) {
-  if (!article.heroImage) return <div className="rail-thumb-fallback" aria-hidden="true">H</div>;
+  if (!article.heroImage)
+    return (
+      <div className="rail-thumb-fallback" aria-hidden="true">
+        H
+      </div>
+    );
   return (
     <div className="rail-thumb">
       <Image
@@ -59,7 +82,10 @@ export default async function Home() {
   const latestArticles = data.latestArticles || [];
   const leadStory = homepage?.leadStory || latestArticles[0];
   const usedIds = new Set(leadStory ? [leadStory._id] : []);
-  const chooseStories = (preferred: ArticleCard[] | undefined, count: number) => {
+  const chooseStories = (
+    preferred: ArticleCard[] | undefined,
+    count: number,
+  ) => {
     const picked: ArticleCard[] = [];
     for (const article of [...(preferred || []), ...latestArticles]) {
       if (!article || usedIds.has(article._id)) continue;
@@ -69,28 +95,41 @@ export default async function Home() {
     }
     return picked;
   };
-  const secondaryStories = chooseStories(homepage?.secondaryStories, 5);
-  const featuredStories = chooseStories(homepage?.featuredStories, 6);
-  const trendingStories = (homepage?.trendingStories || latestArticles.filter((article) => article.trending)).filter(
-    (article) => article && article._id !== leadStory?._id
-  ).slice(0, 4);
+  const secondaryStories = chooseStories(homepage?.secondaryStories, 7);
+  const currentBlogs = chooseStories(homepage?.featuredStories, 8);
+  const trendingStories = (
+    homepage?.trendingStories ||
+    latestArticles.filter((article) => article.trending)
+  )
+    .filter((article) => article && article._id !== leadStory?._id)
+    .slice(0, 4);
 
   return (
     <main className="homepage">
-      {homepage?.breakingNewsBanner?.enabled && homepage.breakingNewsBanner.title && (
-        <Link href={homepage.breakingNewsBanner.link || "#"} className="breaking-banner">
-          <span className="breaking-tag">Breaking</span>
-          <span className="breaking-text">{homepage.breakingNewsBanner.title}</span>
-          <b aria-hidden="true">→</b>
-        </Link>
-      )}
+      {homepage?.breakingNewsBanner?.enabled &&
+        homepage.breakingNewsBanner.title && (
+          <Link
+            href={homepage.breakingNewsBanner.link || "#"}
+            className="breaking-banner"
+          >
+            <span className="breaking-tag">Breaking</span>
+            <span className="breaking-text">
+              {homepage.breakingNewsBanner.title}
+            </span>
+            <b aria-hidden="true">→</b>
+          </Link>
+        )}
 
       {!leadStory ? (
         <section className="empty-state page-frame">
           <p className="eyebrow">From the newsroom</p>
           <h1>We&rsquo;re preparing the next edition.</h1>
-          <p>New stories will appear here as soon as they&rsquo;re published.</p>
-          <Link href="/contact" className="text-link">Contact the team <span aria-hidden="true">→</span></Link>
+          <p>
+            New stories will appear here as soon as they&rsquo;re published.
+          </p>
+          <Link href="/contact" className="text-link">
+            Contact the team <span aria-hidden="true">→</span>
+          </Link>
         </section>
       ) : (
         <>
@@ -98,33 +137,68 @@ export default async function Home() {
             <article className="lead-story">
               <Link href={storyHref(leadStory)} className="lead-image">
                 <StoryImage article={leadStory} priority />
-                {leadStory.breaking && <span className="image-label">Breaking</span>}
+                {leadStory.breaking && (
+                  <span className="image-label">Breaking</span>
+                )}
               </Link>
               <div className="lead-copy">
                 <p className="kicker-row">
-                  {leadStory.category && <Link href={`/categories/${leadStory.category.slug?.current}`} className="kicker">{leadStory.category.title}</Link>}
-                  <span className="meta-date">{formatDate(leadStory.publishedAt)}</span>
+                  {leadStory.category && (
+                    <Link
+                      href={`/categories/${leadStory.category.slug?.current}`}
+                      className="kicker"
+                    >
+                      {leadStory.category.title}
+                    </Link>
+                  )}
+                  <span className="meta-date">
+                    {formatDate(leadStory.publishedAt)}
+                  </span>
                 </p>
-                <h1><Link href={storyHref(leadStory)}>{leadStory.title}</Link></h1>
-                {leadStory.excerpt && <p className="lead-excerpt">{leadStory.excerpt}</p>}
+                <h1>
+                  <Link href={storyHref(leadStory)}>{leadStory.title}</Link>
+                </h1>
+                {leadStory.excerpt && (
+                  <p className="lead-excerpt">{leadStory.excerpt}</p>
+                )}
                 {leadStory.author?.name && (
-                  <p className="byline">By {leadStory.author.name}{leadStory.author.role ? ` · ${leadStory.author.role}` : ""}</p>
+                  <p className="byline">
+                    By {leadStory.author.name}
+                    {leadStory.author.role ? ` · ${leadStory.author.role}` : ""}
+                  </p>
                 )}
               </div>
             </article>
 
             <aside className="latest-rail" aria-label="The latest">
-              <div className="rail-head"><h2>The latest</h2></div>
+              <div className="rail-head">
+                <h2>The latest</h2>
+              </div>
               {secondaryStories.map((article) => (
-                <Link href={storyHref(article)} key={article._id} className="rail-item">
+                <Link
+                  href={storyHref(article)}
+                  key={article._id}
+                  className="rail-item"
+                >
                   <RailThumb article={article} />
                   <div className="rail-item-body">
-                    <p className="kicker">{article.category?.title || "Headline"} <span aria-hidden="true">·</span> <span className="meta-time">{formatShortDate(article.publishedAt)}</span></p>
+                    <p className="kicker">
+                      {article.category?.title || "Headline"}{" "}
+                      <span aria-hidden="true">·</span>{" "}
+                      <span className="meta-time">
+                        {formatShortDate(article.publishedAt)}
+                      </span>
+                    </p>
                     <h3>{article.title}</h3>
                   </div>
                 </Link>
               ))}
-              {secondaryStories.length === 0 && <p className="quiet-copy">More reporting is on its way.</p>}
+              {secondaryStories.length === 0 && (
+                <p className="quiet-copy">More reporting is on its way.</p>
+              )}
+              <Link href="/blogs" className="rail-archive">
+                Browse all blogs <span aria-hidden="true">→</span>
+              </Link>
             </aside>
           </section>
 
@@ -138,8 +212,13 @@ export default async function Home() {
                 <ol className="most-read-grid">
                   {trendingStories.map((article, index) => (
                     <li key={article._id}>
-                      <Link href={storyHref(article)} className="most-read-item">
-                        <span className="most-read-number">{String(index + 1).padStart(2, "0")}</span>
+                      <Link
+                        href={storyHref(article)}
+                        className="most-read-item"
+                      >
+                        <span className="most-read-number">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
                         <span className="most-read-title">{article.title}</span>
                       </Link>
                     </li>
@@ -149,25 +228,45 @@ export default async function Home() {
             </section>
           )}
 
-          {featuredStories.length > 0 && (
+          {currentBlogs.length > 0 && (
             <section className="latest-section page-frame">
-              <header className="section-head">
-                <h2>Latest reporting</h2>
-                <span>{String(featuredStories.length).padStart(2, "0")} stories</span>
+              <header className="section-head latest-section-head">
+                <div>
+                  <p className="eyebrow">Fresh from the desk</p>
+                  <h2>Current blogs</h2>
+                </div>
+                <Link href="/blogs" className="archive-link">
+                  View all blogs <span aria-hidden="true">→</span>
+                </Link>
               </header>
               <div className="story-grid">
-                {featuredStories.map((article, index) => (
-                  <article className={`story-card${index === 0 ? " story-card--lead" : ""}`} key={article._id}>
-                    <Link href={storyHref(article)} className="card-image" tabIndex={-1} aria-hidden="true">
+                {currentBlogs.map((article) => (
+                  <article className="story-card" key={article._id}>
+                    <Link
+                      href={storyHref(article)}
+                      className="card-image"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    >
                       <StoryImage article={article} />
                     </Link>
                     <p className="kicker-row">
-                      <span className="kicker">{article.category?.title || "Headline"}</span>
-                      <span className="meta-date">{formatDate(article.publishedAt)}</span>
+                      <span className="kicker">
+                        {article.category?.title || "Headline"}
+                      </span>
+                      <span className="meta-date">
+                        {formatDate(article.publishedAt)}
+                      </span>
                     </p>
-                    <h3><Link href={storyHref(article)}>{article.title}</Link></h3>
-                    {article.excerpt && <p className="card-excerpt">{article.excerpt}</p>}
-                    <Link href={storyHref(article)} className="text-link">Read story <span aria-hidden="true">→</span></Link>
+                    <h3>
+                      <Link href={storyHref(article)}>{article.title}</Link>
+                    </h3>
+                    {article.excerpt && (
+                      <p className="card-excerpt">{article.excerpt}</p>
+                    )}
+                    <Link href={storyHref(article)} className="text-link">
+                      Read story <span aria-hidden="true">→</span>
+                    </Link>
                   </article>
                 ))}
               </div>

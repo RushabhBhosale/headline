@@ -66,6 +66,11 @@ export type CategoryPageData = {
   articles: ArticleCard[];
 };
 
+export type PaginatedArticles = {
+  articles: ArticleCard[];
+  total: number;
+};
+
 export type SitemapData = {
   articles: { slug: Slug; publishedAt?: string; updatedAt?: string }[];
   categories: CategoryLink[];
@@ -97,7 +102,7 @@ export async function getHomepageData(): Promise<HomePageData> {
       "featuredStories": featuredStories[]->{${articleCardFields}},
       "trendingStories": trendingStories[]->{${articleCardFields}}
     },
-    "latestArticles": *[_type == "article"] | order(publishedAt desc)[0...12]{${articleCardFields}}
+    "latestArticles": *[_type == "article"] | order(publishedAt desc)[0...20]{${articleCardFields}}
   }`, {}, { cache: "no-store", useCdn: false });
 }
 
@@ -118,6 +123,29 @@ export async function getCategoryPage(slug: string): Promise<CategoryPageData | 
     { cache: "no-store", useCdn: false }
   );
   return data.category ? data : null;
+}
+
+export async function getArticlesPage({
+  page = 1,
+  pageSize = 9,
+  query = "",
+}: {
+  page?: number;
+  pageSize?: number;
+  query?: string;
+}): Promise<PaginatedArticles> {
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const articleFilter = `_type == "article" && defined(slug.current) && ($search == "" || title match $search || excerpt match $search || category->title match $search)`;
+
+  return sanityClient.fetch(
+    `{
+      "articles": *[${articleFilter}] | order(publishedAt desc)[$start...$end]{${articleCardFields}},
+      "total": count(*[${articleFilter}])
+    }`,
+    { start, end, search: query ? `*${query}*` : "" },
+    { cache: "no-store", useCdn: false }
+  );
 }
 
 export async function getSitemapData(): Promise<SitemapData> {
