@@ -1,4 +1,12 @@
 import { NewsletterForm } from "@/components/newsletter-form";
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Contact",
+  description: "Contact Headline Thread for editorial corrections, feedback, partnerships, and enquiries.",
+  path: "/contact",
+});
 
 export default function ContactPage() {
   return (

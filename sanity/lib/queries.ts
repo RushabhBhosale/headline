@@ -14,10 +14,29 @@ export type ArticleCard = {
   heroImageAlt?: string;
   heroImageCaption?: string;
   heroImageCredit?: string;
-  author?: { name?: string; role?: string; photo?: unknown };
+  author?: Author;
   category?: { title?: string; slug?: Slug };
   trending?: boolean;
   breaking?: boolean;
+};
+
+export type Author = {
+  name?: string;
+  slug?: Slug;
+  role?: string;
+  photo?: SanityImageSource;
+  shortBio?: string;
+  expertise?: string[];
+  socialLinks?: { name?: string; url?: string }[];
+  profileLinks?: { name?: string; url?: string }[];
+};
+
+export type ArticleSeo = {
+  seoTitle?: string;
+  seoDescription?: string;
+  socialImage?: SanityImageSource;
+  noIndex?: boolean;
+  noFollow?: boolean;
 };
 
 export type CategoryLink = {
@@ -25,6 +44,9 @@ export type CategoryLink = {
   title: string;
   slug: Slug;
   description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  featuredImage?: SanityImageSource;
 };
 
 export type PortableTextBlock = {
@@ -46,6 +68,17 @@ export type Article = ArticleCard & {
   correctionNote?: string;
   updateNote?: string;
   relatedArticles?: ArticleCard[];
+  seo?: ArticleSeo;
+};
+
+export type SiteSettings = {
+  siteName?: string;
+  siteDescription?: string;
+  logo?: SanityImageSource;
+  defaultSeoImage?: SanityImageSource;
+  socialLinks?: string[];
+  organizationInfo?: string;
+  publisherInfo?: string;
 };
 
 type Homepage = {
@@ -87,7 +120,7 @@ const articleCardFields = `
   heroImageAlt,
   heroImageCaption,
   heroImageCredit,
-  author->{name, role, photo},
+  author->{name, slug, role, photo, shortBio, expertise, socialLinks[]{name, url}, profileLinks[]{name, url}},
   category->{title, slug},
   trending,
   breaking
@@ -113,10 +146,16 @@ export async function getSiteNavigationData(): Promise<{ categories: CategoryLin
   }`);
 }
 
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  return sanityClient.fetch(
+    `*[_type == "siteSettings"][0]{siteName, siteDescription, logo, defaultSeoImage, socialLinks, organizationInfo, publisherInfo}`,
+  );
+}
+
 export async function getCategoryPage(slug: string): Promise<CategoryPageData | null> {
   const data = await sanityClient.fetch<CategoryPageData>(
     `{
-      "category": *[_type == "category" && slug.current == $slug][0]{_id, title, slug, description},
+      "category": *[_type == "category" && slug.current == $slug][0]{_id, title, slug, description, seoTitle, seoDescription, featuredImage},
       "articles": *[_type == "article" && category->slug.current == $slug] | order(publishedAt desc){${articleCardFields}}
     }`,
     { slug },
@@ -150,7 +189,7 @@ export async function getArticlesPage({
 
 export async function getSitemapData(): Promise<SitemapData> {
   return sanityClient.fetch(`{
-    "articles": *[_type == "article" && defined(slug.current)]{slug, publishedAt, updatedAt},
+    "articles": *[_type == "article" && defined(slug.current) && seo.noIndex != true]{slug, publishedAt, updatedAt},
     "categories": *[_type == "category" && defined(slug.current)]{_id, title, slug}
   }`, {}, { cache: "no-store", useCdn: false });
 }
@@ -164,6 +203,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
       thread->{title, slug},
       correctionNote,
       updateNote,
+      seo{seoTitle, seoDescription, socialImage, noIndex, noFollow},
       "relatedArticles": select(
         count(*[_type == "article" && _id != ^._id && defined(^.category._ref) && category._ref == ^.category._ref]) > 0 =>
           *[_type == "article" && _id != ^._id && category._ref == ^.category._ref] | order(publishedAt desc)[0...4]{${articleCardFields}},

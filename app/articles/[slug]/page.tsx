@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { Fragment, type ReactNode } from "react";
 import { getArticleBySlug, type Article, type ArticleCard, type PortableTextBlock } from "@/sanity/lib/queries";
 import { sanityClient } from "@/sanity/lib/sanityClient";
 import { urlForImage } from "@/sanity/lib/image";
 import { StoryToc } from "@/components/story-toc";
+import { canonicalUrl, normalizeInternalUrl, SITE_NAME, socialImageUrl, stringifyJsonLd } from "@/lib/seo";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -67,7 +67,43 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) return {};
-  return { title: article.title, description: article.excerpt || undefined };
+  const title = article.seo?.seoTitle || article.title;
+  const description = article.seo?.seoDescription || article.excerpt || undefined;
+  const path = `/articles/${article.slug.current}`;
+  const url = canonicalUrl(path);
+  const image = article.seo?.socialImage || article.heroImage;
+  const imageUrl = socialImageUrl(image);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    robots: {
+      index: article.seo?.noIndex !== true,
+      follow: article.seo?.noFollow !== true,
+    },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url,
+      siteName: SITE_NAME,
+      locale: "en_IN",
+      ...(article.publishedAt ? { publishedTime: article.publishedAt } : {}),
+      ...(article.updatedAt ? { modifiedTime: article.updatedAt } : {}),
+      ...(article.author?.name ? { authors: [article.author.name] } : {}),
+      ...(article.category?.title ? { section: article.category.title } : {}),
+      ...(imageUrl
+        ? { images: [{ url: imageUrl, width: 1200, height: 630, alt: article.heroImageAlt || article.title }] }
+        : {}),
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(imageUrl ? { images: [imageUrl] } : {}),
+    },
+  };
 }
 
 function InlineRelatedStory({ article }: { article: ArticleCard }) {
@@ -82,7 +118,7 @@ function InlineRelatedStory({ article }: { article: ArticleCard }) {
         </div>
         <div>
           <span className="in-article-related-category">{article.category?.title || "Headline"}</span>
-          <h2>{article.title}</h2>
+          <p className="in-article-related-title">{article.title}</p>
           <b>Read story <i aria-hidden="true">→</i></b>
         </div>
       </Link>
@@ -180,7 +216,7 @@ function renderInline(block: PortableTextBlock) {
     const linkKey = child.marks?.find((mark) => defMap.get(mark)?.href);
     if (linkKey) {
       content = (
-        <a href={defMap.get(linkKey)?.href} target="_blank" rel="noopener noreferrer">
+        <a href={normalizeInternalUrl(defMap.get(linkKey)?.href)} target="_blank" rel="noopener noreferrer">
           {content}
         </a>
       );
@@ -249,14 +285,73 @@ export default async function ArticlePage({ params }: PageProps) {
   const relatedStories = article.relatedArticles?.slice(inlineRelated ? 1 : 0, inlineRelated ? 4 : 3) || [];
   const sidebarStories = article.relatedArticles?.filter((story) => story._id !== inlineRelated?._id).slice(0, 3) || [];
   const authorName = article.author?.name || "Headline editorial desk";
-  const headerList = await headers();
-  const hostHeader = headerList.get("host") || "headline.news";
-  const protocol = hostHeader.startsWith("localhost") || hostHeader.startsWith("127.") ? "http" : "https";
-  const canonicalUrl = `${protocol}://${hostHeader}/articles/${article.slug.current}`;
+  const articleUrl = canonicalUrl(`/articles/${article.slug.current}`);
   const sections = getSections(article.body);
+  const socialImage = article.seo?.socialImage || article.heroImage;
+  const imageUrl = socialImageUrl(socialImage);
+  const authorId = article.author?.name ? `${articleUrl}#author` : undefined;
+  const authorJsonLd = article.author?.name
+    ? {
+        "@type": "Person",
+        "@id": authorId,
+        name: article.author.name,
+        ...(article.author.role ? { jobTitle: article.author.role } : {}),
+        ...(article.author.shortBio ? { description: article.author.shortBio } : {}),
+        ...(article.author.expertise?.length ? { knowsAbout: article.author.expertise } : {}),
+        ...(article.author.photo ? { image: socialImageUrl(article.author.photo) } : {}),
+        ...(article.author.socialLinks?.length || article.author.profileLinks?.length
+          ? {
+              sameAs: [...(article.author.socialLinks || []), ...(article.author.profileLinks || [])]
+                .map((link) => link.url)
+                .filter((url): url is string => Boolean(url)),
+            }
+          : {}),
+      }
+    : undefined;
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "NewsArticle",
+        "@id": `${articleUrl}#article`,
+        mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
+        headline: article.title,
+        ...(article.seo?.seoDescription || article.excerpt
+          ? { description: article.seo?.seoDescription || article.excerpt }
+          : {}),
+        ...(imageUrl ? { image: [imageUrl] } : {}),
+        ...(article.publishedAt ? { datePublished: article.publishedAt } : {}),
+        ...(article.updatedAt ? { dateModified: article.updatedAt } : {}),
+        ...(authorId ? { author: { "@id": authorId } } : {}),
+        publisher: { "@id": `${canonicalUrl()}/#organization` },
+        ...(article.category?.title ? { articleSection: article.category.title } : {}),
+      },
+      ...(authorJsonLd ? [authorJsonLd] : []),
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${articleUrl}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: canonicalUrl() },
+          ...(article.category?.title && article.category.slug?.current
+            ? [{ "@type": "ListItem", position: 2, name: article.category.title, item: canonicalUrl(`/categories/${article.category.slug.current}`) }]
+            : []),
+          {
+            "@type": "ListItem",
+            position: article.category?.title && article.category.slug?.current ? 3 : 2,
+            name: article.title,
+            item: articleUrl,
+          },
+        ],
+      },
+    ],
+  };
 
   return (
     <main className="article-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: stringifyJsonLd(articleJsonLd) }}
+      />
       <article>
         <header className="article-header">
           <div className="article-topline">
@@ -311,7 +406,7 @@ export default async function ArticlePage({ params }: PageProps) {
         </header>
 
         <div className="article-content-frame">
-          <ArticleSideRail title={article.title} url={canonicalUrl} sections={sections} />
+          <ArticleSideRail title={article.title} url={articleUrl} sections={sections} />
           <div className="article-main">
             {!article.body?.length && article.excerpt && <p className="article-opening">{article.excerpt}</p>}
             <PortableText blocks={article.body} inlineRelated={inlineRelated} imageDimensions={imageDimensions} />

@@ -3,7 +3,7 @@ import { getSitemapData, type SitemapData } from "@/sanity/lib/queries";
 
 export const revalidate = 0;
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://headlinethread.co.in").replace(/\/$/, "");
+const siteUrl = "https://www.headlinethread.co.in";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let data: SitemapData = { articles: [], categories: [] };

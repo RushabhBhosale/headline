@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCategoryPage, type ArticleCard } from "@/sanity/lib/queries";
 import { urlForImage } from "@/sanity/lib/image";
+import { pageMetadata } from "@/lib/seo";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -27,7 +28,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const data = await getCategoryPage(slug);
   if (!data) return {};
-  return { title: data.category.title, description: data.category.description || `Latest ${data.category.title} stories from Headline.` };
+  return pageMetadata({
+    title: data.category.seoTitle || data.category.title,
+    description: data.category.seoDescription || data.category.description || `Latest ${data.category.title} stories from Headline.`,
+    path: `/categories/${data.category.slug.current}`,
+    image: data.category.featuredImage,
+  });
 }
 
 export default async function CategoryPage({ params }: PageProps) {

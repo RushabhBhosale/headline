@@ -3,16 +3,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { getArticlesPage, type ArticleCard } from "@/sanity/lib/queries";
 import { urlForImage } from "@/sanity/lib/image";
+import { pageMetadata } from "@/lib/seo";
 
 const PAGE_SIZE = 12;
 type BlogPageProps = {
   searchParams: Promise<{ page?: string | string[]; q?: string | string[] }>;
 };
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "All blogs",
   description: "Browse every report, analysis, and perspective from Headline.",
-};
+  path: "/blogs",
+});
 
 export const revalidate = 0;
 

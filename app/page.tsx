@@ -1,7 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getHomepageData, type ArticleCard } from "@/sanity/lib/queries";
 import { urlForImage } from "@/sanity/lib/image";
+import { normalizeInternalUrl, pageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Headline — stories with context",
+  description: "Independent reporting and clear context for the stories that matter.",
+  path: "/",
+});
 
 export const revalidate = 0;
 
@@ -109,7 +117,7 @@ export default async function Home() {
       {homepage?.breakingNewsBanner?.enabled &&
         homepage.breakingNewsBanner.title && (
           <Link
-            href={homepage.breakingNewsBanner.link || "#"}
+            href={normalizeInternalUrl(homepage.breakingNewsBanner.link) || "#"}
             className="breaking-banner"
           >
             <span className="breaking-tag">Breaking</span>

@@ -3,4 +3,4 @@ Allow: /
 Disallow: /private/
 Disallow: /admin/
 
-Sitemap: https://headlinethread.co.in/sitemap.xml
+Sitemap: https://www.headlinethread.co.in/sitemap.xml

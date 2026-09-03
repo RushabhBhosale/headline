@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Terms of Use",
+  description: "Read the Headline Thread terms of use.",
+  path: "/terms",
+});
+
 export default function TermsPage() {
   return (
     <main className="prose max-w-2xl mx-auto py-8">

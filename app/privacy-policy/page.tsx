@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Privacy Policy",
+  description: "Read the Headline Thread privacy policy.",
+  path: "/privacy-policy",
+});
+
 export default function PrivacyPolicyPage() {
   return (
     <main className="prose max-w-2xl mx-auto py-8">

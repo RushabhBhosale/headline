@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Newsreader } from "next/font/google";
 import { SiteFooter, SiteNavigation } from "@/components/site-navigation";
-import { getSiteNavigationData } from "@/sanity/lib/queries";
+import { getSiteNavigationData, getSiteSettings } from "@/sanity/lib/queries";
+import { canonicalUrl, SITE_NAME, SITE_URL, socialImageUrl, stringifyJsonLd } from "@/lib/seo";
 import "./globals.css";
 import Script from "next/script";
 
@@ -18,12 +19,23 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Headline — stories with context",
-    template: "%s | Headline",
-  },
+  metadataBase: new URL(SITE_URL),
+  title: "Headline — stories with context",
   description:
     "Independent reporting and clear context for the stories that matter.",
+  openGraph: {
+    type: "website",
+    title: "Headline — stories with context",
+    description: "Independent reporting and clear context for the stories that matter.",
+    url: canonicalUrl(),
+    siteName: SITE_NAME,
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary",
+    title: "Headline — stories with context",
+    description: "Independent reporting and clear context for the stories that matter.",
+  },
 };
 
 export const viewport: Viewport = {
@@ -37,9 +49,25 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   let navigation: Awaited<ReturnType<typeof getSiteNavigationData>> = {
     categories: [],
   };
+  let siteSettings: Awaited<ReturnType<typeof getSiteSettings>> = null;
   try {
-    navigation = await getSiteNavigationData();
+    [navigation, siteSettings] = await Promise.all([getSiteNavigationData(), getSiteSettings()]);
   } catch {}
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${canonicalUrl()}/#organization`,
+    name: siteSettings?.siteName || SITE_NAME,
+    url: canonicalUrl(),
+    ...(siteSettings?.organizationInfo || siteSettings?.siteDescription
+      ? { description: siteSettings.organizationInfo || siteSettings.siteDescription }
+      : {}),
+    ...(siteSettings?.logo
+      ? { logo: socialImageUrl(siteSettings.logo) }
+      : {}),
+    ...(siteSettings?.socialLinks?.length ? { sameAs: siteSettings.socialLinks } : {}),
+  };
 
   return (
     <html lang="en" className={`${inter.variable} ${newsreader.variable}`}>
@@ -64,6 +92,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         `}
       </Script>
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: stringifyJsonLd(organizationJsonLd) }}
+        />
         <SiteNavigation
           categories={navigation.categories}
           latestHeadline={navigation.latestHeadline}
